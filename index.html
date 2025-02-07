@@ -7,48 +7,74 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e1e1e">
-  <!-- Include Google Fonts for a nicer English font -->
+  <!-- Use Roboto for a modern English font -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,500&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
     <h1>Hebrew</h1>
     
-    <!-- Mode selector and file uploader -->
-    <div class="controls">
-      <label for="modeSelect">Select Mode:</label>
-      <select id="modeSelect">
-        <option value="engToHeb">English to Hebrew</option>
-        <option value="hebToEng">Hebrew to English</option>
-      </select>
-    </div>
-    <div class="controls">
-      <label for="fileInput">Upload .dcp File:</label>
-      <input type="file" id="fileInput" accept=".dcp">
-    </div>
-    <div class="controls">
-      <button id="loadSavedButton">Load Saved Data</button>
-      <button id="clearSavedButton">Clear Saved Data</button>
+    <!-- Database controls -->
+    <div class="db-controls">
+      <div class="controls">
+        <label for="fileInput">Upload .dcp File:</label>
+        <input type="file" id="fileInput" accept=".dcp">
+        <button id="uploadFileButton">Load File to Database</button>
+      </div>
+      <div class="controls">
+        <label for="dbListSelect">Choose a List:</label>
+        <select id="dbListSelect"></select>
+        <button id="loadListButton">Load List</button>
+      </div>
+      <div class="controls">
+        <button id="leastKnownButton">Check 20 Least Known Words</button>
+        <button id="statsButton">Display Statistics</button>
+      </div>
     </div>
     
-    <!-- Flashcard display -->
-    <div class="flashcard">
-      <div id="question" class="question">Your question will appear here.</div>
-      <input type="text" id="answer" placeholder="Type your answer">
-      <div class="buttons">
-        <button id="checkButton">Check</button>
-        <button id="nextButton">Next Word</button>
+    <!-- Flashcard and side panel layout -->
+    <div class="flashcard-container">
+      <div class="flashcard">
+        <div id="question" class="question">Your question will appear here.</div>
+        <!-- Correct answer (with nikkud) is now displayed above the input -->
+        <div id="correctAnswer" class="correct-answer"></div>
+        <input type="text" id="answer" placeholder="Type your answer">
+        <div class="buttons">
+          <button id="checkButton">Check</button>
+          <button id="nextButton">Next Word</button>
+        </div>
+        <div id="feedback" class="feedback"></div>
       </div>
-      <div id="feedback" class="feedback"></div>
-      <!-- This div will show the correct (canonical) answer -->
-      <div id="correctAnswer" class="correct-answer"></div>
+      <div id="sidePanel" class="side-panel">
+        <!-- Colored bars for words will be inserted here -->
+      </div>
     </div>
   </div>
   
-  <!-- Main application script -->
+  <!-- Statistics Modal -->
+  <div id="statsModal" class="modal">
+    <div class="modal-content">
+      <span id="closeModal" class="close">&times;</span>
+      <h2>Word Statistics</h2>
+      <table id="statsTable">
+        <thead>
+          <tr>
+            <th>Word</th>
+            <th>Correct</th>
+            <th>Incorrect</th>
+            <th>Ratio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
   <script src="app.js"></script>
-  <!-- Service Worker registration for offline/PWA support -->
   <script>
+    // Register service worker for offline support
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js')
       .then(function(registration) {

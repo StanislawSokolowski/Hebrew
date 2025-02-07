@@ -5,7 +5,7 @@ const urlsToCache = [
   "./style.css",
   "./app.js",
   "./manifest.json"
-  // Uncomment the lines below if you want to cache your icons as well:
+  // Uncomment these lines if you want to cache your icons:
   // "./icons/icon-192.png",
   // "./icons/icon-512.png"
 ];
