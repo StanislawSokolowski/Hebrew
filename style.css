@@ -84,8 +84,7 @@ button:hover {
   margin-bottom: 10px;
   font-size: 18px;
   font-weight: 500;
-  /* Correct answer text now green */
-  color: #388e3c;
+  color: #388e3c; /* Correct Answer text color remains green */
 }
 
 .buttons {
@@ -177,4 +176,11 @@ table, th, td {
 th, td {
   padding: 8px;
   text-align: center;
+}
+
+/* New rule for larger nikkud answer */
+.nikkud-answer {
+  font-size: 36px; /* Adjust size as desired */
+  font-weight: bold;
+  color: #388e3c;
 }
