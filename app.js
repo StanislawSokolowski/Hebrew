@@ -281,7 +281,9 @@ function checkAnswer() {
     feedbackDiv.textContent = "Incorrect. Try again.";
   }
   
-  correctAnswerDiv.textContent = `Correct Answer: ${canonicalAnswer}`;
+  // --- MODIFIED: Display the correct answer with nikkud in a larger font on a new line ---
+  correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
+  
   updateSidePanel();
   
   // Update overall statistics in the database.
