@@ -12,31 +12,53 @@ const answerInput = document.getElementById("answer");
 const checkButton = document.getElementById("checkButton");
 const nextButton = document.getElementById("nextButton");
 const feedbackDiv = document.getElementById("feedback");
+const correctAnswerDiv = document.getElementById("correctAnswer");
+const loadSavedButton = document.getElementById("loadSavedButton");
+const clearSavedButton = document.getElementById("clearSavedButton");
 
-// Class to represent a word entry
+// Represents one dictionary entry.
 class WordEntry {
   constructor(english, hebrew) {
     this.english = english;
     this.hebrew = hebrew; // array of acceptable Hebrew answers
     this.status = "default"; // can be "default", "wrong", or "known"
-    this.correctStreak = 0; // used when in "wrong" state
+    this.correctStreak = 0;  // used when in "wrong" state
   }
 }
 
-// Returns a random word from the loaded list
+// Utility: Check if a text contains any Hebrew nikkud (diacritics)
+// Hebrew diacritics are in the Unicode range \u0591-\u05C7.
+function containsNikkud(text) {
+  return /[\u0591-\u05C7]/.test(text);
+}
+
+// Get the canonical Hebrew answer (with nikkud if available)
+// For English-to-Hebrew mode, this will be the answer shown.
+function getCanonicalHebrew(variants) {
+  for (let variant of variants) {
+    if (containsNikkud(variant)) {
+      return variant;
+    }
+  }
+  return variants[0];
+}
+
+// Return a random word from the list.
 function getRandomWord() {
   if (words.length === 0) return null;
   const index = Math.floor(Math.random() * words.length);
   return words[index];
 }
 
-// Parse the contents of the .dcp file
+// Parse the contents of the .dcp file (UTF-16LE BOM encoded).
+// Expects each line to be in the format: english=hebrew1|hebrew2...
+// A line containing "@" marks the end of the file.
 function parseDCPFile(text) {
-  words = []; // Reset words array
+  words = [];
   const lines = text.split(/\r?\n/);
   for (let line of lines) {
     line = line.trim();
-    if (line === "@") break; // "@" indicates end of file
+    if (line === "@") break;
     if (!line) continue;
     const eqIndex = line.indexOf("=");
     if (eqIndex > 0) {
@@ -54,39 +76,70 @@ function parseDCPFile(text) {
   }
 }
 
-// Display the next word
+// Save the uploaded file text to localStorage for later access.
+function saveFileData(text) {
+  localStorage.setItem("dcpFile", text);
+}
+
+// Load saved file data from localStorage.
+function loadSavedFile() {
+  const saved = localStorage.getItem("dcpFile");
+  if (saved) {
+    parseDCPFile(saved);
+    feedbackDiv.textContent = `Loaded saved data with ${words.length} words.`;
+  } else {
+    feedbackDiv.textContent = "No saved data found.";
+  }
+}
+
+// Clear saved file data from localStorage.
+function clearSavedFile() {
+  localStorage.removeItem("dcpFile");
+  feedbackDiv.textContent = "Saved data cleared.";
+}
+
+// Choose the next word and display the question.
 function nextWord() {
   currentWord = getRandomWord();
   if (!currentWord) {
     questionDiv.textContent = "No words available.";
     return;
   }
-  mode = modeSelect.value; // Update mode based on selection
+  mode = modeSelect.value; // Update mode based on selection.
   if (mode === "engToHeb") {
     questionDiv.textContent = currentWord.english;
   } else {
-    // For Hebrew to English, choose a random Hebrew variant for display.
+    // For Hebrew-to-English, randomly select one of the Hebrew variants.
     const randomIndex = Math.floor(Math.random() * currentWord.hebrew.length);
     questionDiv.textContent = currentWord.hebrew[randomIndex];
   }
   answerInput.value = "";
   answerInput.classList.remove("known", "wrong");
   feedbackDiv.textContent = "";
+  correctAnswerDiv.textContent = "";
   answerInput.focus();
 }
 
-// Check the user's answer
+// Check the user's answer.
 function checkAnswer() {
   if (!currentWord) return;
   const userAnswer = answerInput.value.trim();
   let isCorrect = false;
   
   if (mode === "engToHeb") {
-    // Check if the answer exactly matches one of the Hebrew variants.
+    // Check if the answer exactly matches any Hebrew variant.
     isCorrect = currentWord.hebrew.some(ans => ans === userAnswer);
   } else {
-    // Hebrew to English: compare case-insensitively.
+    // In Hebrew-to-English mode, compare case-insensitively.
     isCorrect = (currentWord.english.toLowerCase() === userAnswer.toLowerCase());
+  }
+  
+  // Determine the canonical answer to display.
+  let canonicalAnswer = "";
+  if (mode === "engToHeb") {
+    canonicalAnswer = getCanonicalHebrew(currentWord.hebrew);
+  } else {
+    canonicalAnswer = currentWord.english;
   }
   
   if (isCorrect) {
@@ -99,20 +152,21 @@ function checkAnswer() {
         feedbackDiv.textContent = "Correct! (Answer it correctly once more to mark as known.)";
       }
     } else {
-      // In default state, mark as known immediately.
       currentWord.status = "known";
       feedbackDiv.textContent = "Correct! Word marked as known.";
     }
   } else {
-    // On an incorrect answer, mark the word as "wrong" and reset its streak.
     currentWord.status = "wrong";
     currentWord.correctStreak = 0;
     feedbackDiv.textContent = "Incorrect. Try again.";
   }
+  
   updateAnswerInputStyle();
+  // Always display the canonical answer after checking.
+  correctAnswerDiv.textContent = `Correct Answer: ${canonicalAnswer}`;
 }
 
-// Update the input’s background color based on the word’s status.
+// Update the answer input’s background based on the word’s status.
 function updateAnswerInputStyle() {
   answerInput.classList.remove("known", "wrong");
   if (currentWord.status === "known") {
@@ -124,14 +178,16 @@ function updateAnswerInputStyle() {
 
 // Event listeners
 
-// When the file is loaded, read it as text (specifying "utf-16le")
+// When a file is uploaded, read it (as UTF-16LE), parse it, and save it locally.
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.readAsText(file, "utf-16le");
   reader.onload = function() {
-    parseDCPFile(reader.result);
+    const fileText = reader.result;
+    parseDCPFile(fileText);
+    saveFileData(fileText);
   };
   reader.onerror = function() {
     feedbackDiv.textContent = "Error reading file.";
@@ -140,3 +196,12 @@ fileInput.addEventListener("change", (e) => {
 
 checkButton.addEventListener("click", checkAnswer);
 nextButton.addEventListener("click", nextWord);
+loadSavedButton.addEventListener("click", loadSavedFile);
+clearSavedButton.addEventListener("click", clearSavedFile);
+
+// On page load, automatically load saved data (if available).
+window.addEventListener("load", () => {
+  if (localStorage.getItem("dcpFile")) {
+    loadSavedFile();
+  }
+});

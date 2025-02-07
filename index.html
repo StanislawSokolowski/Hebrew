@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Ensure proper scaling on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DCP Flashcard</title>
+  <title>Hebrew</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
-  <!-- Set a theme color for the address bar in supported browsers -->
-  <meta name="theme-color" content="#317EFB">
+  <meta name="theme-color" content="#1e1e1e">
+  <!-- Include Google Fonts for a nicer English font -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
-    <h1>DCP Flashcard</h1>
+    <h1>Hebrew</h1>
     
-    <!-- Mode selector and file loader -->
+    <!-- Mode selector and file uploader -->
     <div class="controls">
       <label for="modeSelect">Select Mode:</label>
       <select id="modeSelect">
@@ -23,8 +23,12 @@
       </select>
     </div>
     <div class="controls">
-      <label for="fileInput">Load .dcp File:</label>
+      <label for="fileInput">Upload .dcp File:</label>
       <input type="file" id="fileInput" accept=".dcp">
+    </div>
+    <div class="controls">
+      <button id="loadSavedButton">Load Saved Data</button>
+      <button id="clearSavedButton">Clear Saved Data</button>
     </div>
     
     <!-- Flashcard display -->
@@ -36,12 +40,14 @@
         <button id="nextButton">Next Word</button>
       </div>
       <div id="feedback" class="feedback"></div>
+      <!-- This div will show the correct (canonical) answer -->
+      <div id="correctAnswer" class="correct-answer"></div>
     </div>
   </div>
   
-  <!-- Include the main JavaScript file -->
+  <!-- Main application script -->
   <script src="app.js"></script>
-  <!-- Register the service worker for offline/PWA support -->
+  <!-- Service Worker registration for offline/PWA support -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js')

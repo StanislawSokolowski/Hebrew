@@ -1,11 +1,11 @@
-const CACHE_NAME = "dcp-flashcard-cache-v1";
+const CACHE_NAME = "hebrew-cache-v1";
 const urlsToCache = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
   "./manifest.json"
-  // Uncomment and add your icons if available:
+  // Uncomment the lines below if you want to cache your icons as well:
   // "./icons/icon-192.png",
   // "./icons/icon-512.png"
 ];
@@ -24,7 +24,6 @@ self.addEventListener("fetch", function(event) {
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {
-        // Return the cached file if found, else fetch from network.
         return response || fetch(event.request);
       })
   );

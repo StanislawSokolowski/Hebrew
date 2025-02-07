@@ -1,6 +1,6 @@
 {
-  "short_name": "Flashcard",
-  "name": "DCP Flashcard PWA",
+  "short_name": "Hebrew",
+  "name": "Hebrew PWA",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -15,6 +15,6 @@
   ],
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#317EFB"
+  "background_color": "#121212",
+  "theme_color": "#1e1e1e"
 }
