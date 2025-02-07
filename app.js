@@ -1,7 +1,7 @@
 /* app.js */
 
 // =======================
-// IndexedDB Setup (unchanged)
+// IndexedDB Setup
 // =======================
 let db;
 function openDB() {
@@ -95,7 +95,7 @@ function deleteListFromDB(id) {
 }
 
 // =======================
-// Utility Functions (unchanged)
+// Utility Functions
 // =======================
 function containsNikkud(text) {
   return /[\u0591-\u05C7]/.test(text);
@@ -136,12 +136,12 @@ function parseDCPText(text) {
 }
 
 // =======================
-// Global Variables & UI Elements (unchanged)
+// Global Variables & UI Elements
 // =======================
 let currentList = null;     // Loaded list object {id, name, words: [...]}
-let sessionWords = [];      // For current flashcard session; these are deep copies
+let sessionWords = [];      // For current flashcard session (deep copies of words)
 let currentWordIndex = -1;  // Index into sessionWords
-let globalSessionMode = false; // false = single-list session; true = global session.
+let globalSessionMode = false; // false = single list session; true = global session.
 
 const fileInput         = document.getElementById("fileInput");
 const uploadFileButton  = document.getElementById("uploadFileButton");
@@ -164,7 +164,18 @@ const closeModal        = document.getElementById("closeModal");
 const statsTableBody    = document.querySelector("#statsTable tbody");
 
 // =======================
-// Side Panel Update (unchanged)
+// Helper Function: Shuffle (Fisher-Yates)
+// =======================
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// =======================
+// Side Panel Update: Small, multi-column indicators
 // =======================
 function updateSidePanel() {
   sidePanel.innerHTML = "";
@@ -187,19 +198,23 @@ function updateSidePanel() {
 // Flashcard Session Functions
 // =======================
 
-// --- MODIFIED: startSession now creates deep copies with status reset ---
+// When starting a session, create deep copies of words, reset status to default, and shuffle the order.
 function startSession(wordsArray, isGlobalMode = false) {
   sessionWords = wordsArray.map(word => {
     return {
       english: word.english,
-      hebrew: word.hebrew.slice(), // make a copy of the hebrew variants array
+      hebrew: word.hebrew.slice(), // copy array
       status: "default",           // reset session indicator to default
       correctCount: word.correctCount,
       incorrectCount: word.incorrectCount,
       correctStreak: 0             // reset session streak
-      // In global sessions, we also later add parentListId as needed.
+      // For global sessions, parentListId will be added later as needed.
     };
   });
+  
+  // Randomize the order of words.
+  shuffle(sessionWords);
+  
   currentWordIndex = -1;
   globalSessionMode = isGlobalMode;
   nextWord();
@@ -269,8 +284,8 @@ function checkAnswer() {
   correctAnswerDiv.textContent = `Correct Answer: ${canonicalAnswer}`;
   updateSidePanel();
   
-  // --- MODIFIED: Update the database with overall stats only,
-  // and force the DB "status" field to "default" so that next session starts fresh.
+  // Update overall statistics in the database.
+  // In the database, we always save the word's status as "default" (so next session starts fresh)
   if (!globalSessionMode && currentList) {
     for (let word of currentList.words) {
       if (word.english === currentWord.english &&
@@ -278,7 +293,7 @@ function checkAnswer() {
         word.correctCount = currentWord.correctCount;
         word.incorrectCount = currentWord.incorrectCount;
         word.correctStreak = currentWord.correctStreak;
-        word.status = "default"; // always save as default in DB
+        word.status = "default"; // stored DB status is always default
         break;
       }
     }
@@ -307,7 +322,7 @@ function checkAnswer() {
 }
 
 // =======================
-// Statistics Modal (unchanged)
+// Statistics Modal Functions
 // =======================
 function displayStatistics() {
   let listsToShow = [];
@@ -358,7 +373,7 @@ window.onclick = function(event) {
 };
 
 // =======================
-// Button Event Listeners (unchanged except for new Delete List functionality)
+// Button Event Listeners
 // =======================
 checkButton.addEventListener("click", checkAnswer);
 nextButton.addEventListener("click", nextWord);
@@ -428,7 +443,7 @@ loadListButton.addEventListener("click", function() {
   getListFromDB(selectedId).then(list => {
     if (list) {
       currentList = list;
-      // Start a session with a deep copy that resets the session status.
+      // Start a new session with deep copies (status reset) and shuffle the order.
       startSession(currentList.words, false);
       globalSessionMode = false;
       updateSidePanel();
@@ -437,7 +452,6 @@ loadListButton.addEventListener("click", function() {
   });
 });
 
-// NEW: Delete List Button functionality.
 deleteListButton.addEventListener("click", function() {
   const selectedId = dbListSelect.value;
   if (!selectedId) {
@@ -458,7 +472,7 @@ deleteListButton.addEventListener("click", function() {
   }
 });
 
-// Populate dropdown with lists from the database.
+// Populate the dropdown with lists from the database.
 function populateListDropdown() {
   getAllListsFromDB().then(lists => {
     dbListSelect.innerHTML = "";
@@ -472,7 +486,7 @@ function populateListDropdown() {
 }
 
 // =======================
-// Initialization on Page Load (unchanged)
+// Initialization on Page Load
 // =======================
 window.addEventListener("load", function() {
   openDB().then(() => {
