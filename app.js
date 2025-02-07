@@ -80,6 +80,20 @@ function updateListInDB(list) {
   });
 }
 
+function deleteListFromDB(id) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["lists"], "readwrite");
+    const store = transaction.objectStore("lists");
+    const request = store.delete(Number(id));
+    request.onsuccess = function(e) {
+      resolve(e.target.result);
+    };
+    request.onerror = function(e) {
+      reject(e);
+    };
+  });
+}
+
 // =======================
 // Utility Functions
 // =======================
@@ -100,7 +114,7 @@ function getCanonicalHebrew(variants) {
 }
 
 // Parse the contents of a .dcp file into an array of word objects
-// Each line should be: english=hebrew1|hebrew2...
+// Each line: english=hebrew1|hebrew2...
 // A line with "@" marks the end.
 function parseDCPText(text) {
   const wordsArray = [];
@@ -131,13 +145,15 @@ function parseDCPText(text) {
 // Global Variables & UI Elements
 // =======================
 let currentList = null;     // The loaded list object {id, name, words: [...] }
-let sessionWords = [];      // Array used for the current flashcard session
+let sessionWords = [];      // For the current flashcard session; in global mode each word gets extra property parentListId.
 let currentWordIndex = -1;  // Index into sessionWords
+let globalSessionMode = false; // false = single list session; true = global least-known session.
 
 const fileInput         = document.getElementById("fileInput");
 const uploadFileButton  = document.getElementById("uploadFileButton");
 const dbListSelect      = document.getElementById("dbListSelect");
 const loadListButton    = document.getElementById("loadListButton");
+const deleteListButton  = document.getElementById("deleteListButton");
 const leastKnownButton  = document.getElementById("leastKnownButton");
 const statsButton       = document.getElementById("statsButton");
 
@@ -154,9 +170,8 @@ const closeModal        = document.getElementById("closeModal");
 const statsTableBody    = document.querySelector("#statsTable tbody");
 
 // =======================
-// Side Panel Update
+// Side Panel Update: Display many small indicator squares (columns)
 // =======================
-
 function updateSidePanel() {
   sidePanel.innerHTML = "";
   if (!sessionWords || sessionWords.length === 0) return;
@@ -177,10 +192,10 @@ function updateSidePanel() {
 // =======================
 // Flashcard Session Functions
 // =======================
-
-function startSession(wordsArray) {
-  sessionWords = wordsArray.slice(); // copy the array
+function startSession(wordsArray, isGlobalMode = false) {
+  sessionWords = wordsArray.slice(); // copy array
   currentWordIndex = -1;
+  globalSessionMode = isGlobalMode;
   nextWord();
 }
 
@@ -195,7 +210,6 @@ function nextWord() {
 
 function displayCurrentWord() {
   const currentWord = sessionWords[currentWordIndex];
-  // Determine the mode from a (possibly added) mode selector; default is English→Hebrew.
   const mode = document.querySelector('select#modeSelect')?.value || "engToHeb";
   if (mode === "engToHeb") {
     questionDiv.textContent = currentWord.english;
@@ -219,13 +233,11 @@ function checkAnswer() {
   let isCorrect = false;
   
   if (mode === "engToHeb") {
-    // Check that the answer matches one of the Hebrew variants exactly.
     isCorrect = currentWord.hebrew.some(ans => ans === userAnswer);
   } else {
     isCorrect = (currentWord.english.toLowerCase() === userAnswer.toLowerCase());
   }
   
-  // Determine the canonical answer (with nikkud if applicable)
   const canonicalAnswer = (mode === "engToHeb") ? getCanonicalHebrew(currentWord.hebrew) : currentWord.english;
   
   if (isCorrect) {
@@ -248,13 +260,35 @@ function checkAnswer() {
     currentWord.correctStreak = 0;
     feedbackDiv.textContent = "Incorrect. Try again.";
   }
-  // Display the canonical answer above the input field.
+  
   correctAnswerDiv.textContent = `Correct Answer: ${canonicalAnswer}`;
   updateSidePanel();
+  
   // Save updated statistics to the database.
-  if (currentList) {
+  if (!globalSessionMode && currentList) {
+    // Single-list mode: update the loaded list.
     updateListInDB(currentList).then(() => {
       console.log("List updated in DB.");
+    });
+  } else if (globalSessionMode && currentWord.parentListId) {
+    // Global session mode: update the specific parent list for this word.
+    getListFromDB(currentWord.parentListId).then(list => {
+      if (list) {
+        // Find and update the matching word.
+        for (let word of list.words) {
+          if (word.english === currentWord.english &&
+              JSON.stringify(word.hebrew) === JSON.stringify(currentWord.hebrew)) {
+            word.correctCount = currentWord.correctCount;
+            word.incorrectCount = currentWord.incorrectCount;
+            word.status = currentWord.status;
+            word.correctStreak = currentWord.correctStreak;
+            break;
+          }
+        }
+        updateListInDB(list).then(() => {
+          console.log("Parent list updated in DB.");
+        });
+      }
     });
   }
 }
@@ -262,29 +296,43 @@ function checkAnswer() {
 // =======================
 // Statistics Modal
 // =======================
-
 function displayStatistics() {
-  if (!currentList || !currentList.words) return;
+  let listsToShow = [];
+  if (globalSessionMode) {
+    // Global mode: show stats for all lists.
+    getAllListsFromDB().then(lists => {
+      listsToShow = lists;
+      populateStatsTable(listsToShow);
+      statsModal.style.display = "block";
+    });
+  } else if (currentList) {
+    populateStatsTable([currentList]);
+    statsModal.style.display = "block";
+  }
+}
+
+function populateStatsTable(lists) {
   statsTableBody.innerHTML = "";
-  currentList.words.forEach(word => {
-    const row = document.createElement("tr");
-    const wordCell = document.createElement("td");
-    wordCell.textContent = word.english;
-    const correctCell = document.createElement("td");
-    correctCell.textContent = word.correctCount;
-    const incorrectCell = document.createElement("td");
-    incorrectCell.textContent = word.incorrectCount;
-    const total = word.correctCount + word.incorrectCount;
-    const ratioCell = document.createElement("td");
-    const ratio = total > 0 ? (word.incorrectCount / total).toFixed(2) : "0.00";
-    ratioCell.textContent = ratio;
-    row.appendChild(wordCell);
-    row.appendChild(correctCell);
-    row.appendChild(incorrectCell);
-    row.appendChild(ratioCell);
-    statsTableBody.appendChild(row);
+  lists.forEach(list => {
+    list.words.forEach(word => {
+      const row = document.createElement("tr");
+      const wordCell = document.createElement("td");
+      wordCell.textContent = word.english;
+      const correctCell = document.createElement("td");
+      correctCell.textContent = word.correctCount;
+      const incorrectCell = document.createElement("td");
+      incorrectCell.textContent = word.incorrectCount;
+      const total = word.correctCount + word.incorrectCount;
+      const ratioCell = document.createElement("td");
+      const ratio = total > 0 ? (word.incorrectCount / total).toFixed(2) : "0.00";
+      ratioCell.textContent = ratio;
+      row.appendChild(wordCell);
+      row.appendChild(correctCell);
+      row.appendChild(incorrectCell);
+      row.appendChild(ratioCell);
+      statsTableBody.appendChild(row);
+    });
   });
-  statsModal.style.display = "block";
 }
 
 closeModal.onclick = function() {
@@ -300,25 +348,33 @@ window.onclick = function(event) {
 // =======================
 // Button Event Listeners
 // =======================
-
 checkButton.addEventListener("click", checkAnswer);
 nextButton.addEventListener("click", nextWord);
 statsButton.addEventListener("click", displayStatistics);
 
 leastKnownButton.addEventListener("click", function() {
-  if (!currentList || !currentList.words) return;
-  // For each word, compute the ratio = incorrectCount / total answers.
-  const wordsWithMetric = currentList.words.map(word => {
-    const total = word.correctCount + word.incorrectCount;
-    const metric = total > 0 ? word.incorrectCount / total : 0;
-    return { word, metric };
+  // Global least-known session: aggregate words from all lists.
+  getAllListsFromDB().then(lists => {
+    let aggregatedWords = [];
+    lists.forEach(list => {
+      list.words.forEach(word => {
+        // Compute metric: incorrectCount / (total answers)
+        const total = word.correctCount + word.incorrectCount;
+        const metric = total > 0 ? word.incorrectCount / total : 0;
+        // Clone word and add parentListId.
+        const wordClone = Object.assign({}, word);
+        wordClone.parentListId = list.id;
+        wordClone.metric = metric;
+        aggregatedWords.push(wordClone);
+      });
+    });
+    // Sort descending (higher ratio means less known).
+    aggregatedWords.sort((a, b) => b.metric - a.metric);
+    // Select top 20.
+    const leastKnown = aggregatedWords.slice(0, 20);
+    startSession(leastKnown, true); // global session mode true.
+    updateSidePanel();
   });
-  // Sort descending by metric.
-  wordsWithMetric.sort((a, b) => b.metric - a.metric);
-  // Select the top 20 words.
-  const leastKnown = wordsWithMetric.slice(0, 20).map(item => item.word);
-  startSession(leastKnown);
-  updateSidePanel();
 });
 
 uploadFileButton.addEventListener("click", function() {
@@ -364,15 +420,36 @@ loadListButton.addEventListener("click", function() {
   getListFromDB(selectedId).then(list => {
     if (list) {
       currentList = list;
-      // Start a session using all words in the list.
-      startSession(currentList.words);
+      startSession(currentList.words, false);
+      globalSessionMode = false;
       updateSidePanel();
       feedbackDiv.textContent = `Loaded list "${currentList.name}" with ${currentList.words.length} words.`;
     }
   });
 });
 
-// Populate the dropdown with lists from the database.
+deleteListButton.addEventListener("click", function() {
+  const selectedId = dbListSelect.value;
+  if (!selectedId) {
+    feedbackDiv.textContent = "Please select a list to delete.";
+    return;
+  }
+  if (confirm("Are you sure you want to delete this list? This action cannot be undone.")) {
+    deleteListFromDB(selectedId).then(() => {
+      feedbackDiv.textContent = "List deleted.";
+      populateListDropdown();
+      // If the deleted list is currently loaded, clear the session.
+      if (currentList && currentList.id == selectedId) {
+        currentList = null;
+        sessionWords = [];
+        questionDiv.textContent = "No list loaded.";
+        sidePanel.innerHTML = "";
+      }
+    });
+  }
+});
+
+// Populate dropdown with lists from the database.
 function populateListDropdown() {
   getAllListsFromDB().then(lists => {
     dbListSelect.innerHTML = "";

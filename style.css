@@ -84,7 +84,8 @@ button:hover {
   margin-bottom: 10px;
   font-size: 18px;
   font-weight: 500;
-  color: #ff9800;
+  /* Correct answer text now green */
+  color: #388e3c;
 }
 
 .buttons {
@@ -107,9 +108,13 @@ input.wrong {
   color: #fff;
 }
 
-/* Side panel for word status */
+/* Side panel for word status: many small indicators in columns */
 .side-panel {
   flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
   border-left: 2px solid #444;
   padding-left: 10px;
   max-height: 400px;
@@ -117,10 +122,10 @@ input.wrong {
 }
 
 .side-panel .word-bar {
-  width: 100%;
-  height: 10px;
-  margin: 4px 0;
-  border-radius: 4px;
+  width: 12px;
+  height: 12px;
+  margin: 2px;
+  border-radius: 2px;
 }
 
 /* Modal styles for statistics */
