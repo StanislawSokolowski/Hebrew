@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Ensure proper scaling on mobile devices -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DCP Flashcard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <!-- Set a theme color for the address bar in supported browsers -->
+  <meta name="theme-color" content="#317EFB">
+</head>
+<body>
+  <div class="container">
+    <h1>DCP Flashcard</h1>
+    
+    <!-- Mode selector and file loader -->
+    <div class="controls">
+      <label for="modeSelect">Select Mode:</label>
+      <select id="modeSelect">
+        <option value="engToHeb">English to Hebrew</option>
+        <option value="hebToEng">Hebrew to English</option>
+      </select>
+    </div>
+    <div class="controls">
+      <label for="fileInput">Load .dcp File:</label>
+      <input type="file" id="fileInput" accept=".dcp">
+    </div>
+    
+    <!-- Flashcard display -->
+    <div class="flashcard">
+      <div id="question" class="question">Your question will appear here.</div>
+      <input type="text" id="answer" placeholder="Type your answer">
+      <div class="buttons">
+        <button id="checkButton">Check</button>
+        <button id="nextButton">Next Word</button>
+      </div>
+      <div id="feedback" class="feedback"></div>
+    </div>
+  </div>
+  
+  <!-- Include the main JavaScript file -->
+  <script src="app.js"></script>
+  <!-- Register the service worker for offline/PWA support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+      .then(function(registration) {
+        console.log('Service Worker registered with scope:', registration.scope);
+      })
+      .catch(function(error) {
+        console.log('Service Worker registration failed:', error);
+      });
+    }
+  </script>
+</body>
+</html>
