@@ -1,7 +1,7 @@
 /* app.js */
 
 // =======================
-// IndexedDB Setup
+// IndexedDB Setup (unchanged)
 // =======================
 let db;
 function openDB() {
@@ -95,15 +95,12 @@ function deleteListFromDB(id) {
 }
 
 // =======================
-// Utility Functions
+// Utility Functions (unchanged)
 // =======================
-
-// Check if text contains Hebrew nikkud (diacritics)
 function containsNikkud(text) {
   return /[\u0591-\u05C7]/.test(text);
 }
 
-// Return the canonical Hebrew answer (with nikkud if available)
 function getCanonicalHebrew(variants) {
   for (let variant of variants) {
     if (containsNikkud(variant)) {
@@ -113,9 +110,6 @@ function getCanonicalHebrew(variants) {
   return variants[0];
 }
 
-// Parse the contents of a .dcp file into an array of word objects
-// Each line: english=hebrew1|hebrew2...
-// A line with "@" marks the end.
 function parseDCPText(text) {
   const wordsArray = [];
   const lines = text.split(/\r?\n/);
@@ -131,7 +125,7 @@ function parseDCPText(text) {
       wordsArray.push({
         english: english,
         hebrew: hebrewVariants,
-        status: "default",      // "default", "wrong", or "known"
+        status: "default",      // overall DB field (will be reset to default on new session)
         correctStreak: 0,
         correctCount: 0,
         incorrectCount: 0
@@ -142,12 +136,12 @@ function parseDCPText(text) {
 }
 
 // =======================
-// Global Variables & UI Elements
+// Global Variables & UI Elements (unchanged)
 // =======================
-let currentList = null;     // The loaded list object {id, name, words: [...] }
-let sessionWords = [];      // For the current flashcard session; in global mode each word gets extra property parentListId.
+let currentList = null;     // Loaded list object {id, name, words: [...]}
+let sessionWords = [];      // For current flashcard session; these are deep copies
 let currentWordIndex = -1;  // Index into sessionWords
-let globalSessionMode = false; // false = single list session; true = global least-known session.
+let globalSessionMode = false; // false = single-list session; true = global session.
 
 const fileInput         = document.getElementById("fileInput");
 const uploadFileButton  = document.getElementById("uploadFileButton");
@@ -170,7 +164,7 @@ const closeModal        = document.getElementById("closeModal");
 const statsTableBody    = document.querySelector("#statsTable tbody");
 
 // =======================
-// Side Panel Update: Display many small indicator squares (columns)
+// Side Panel Update (unchanged)
 // =======================
 function updateSidePanel() {
   sidePanel.innerHTML = "";
@@ -183,7 +177,7 @@ function updateSidePanel() {
     } else if (word.status === "wrong") {
       bar.style.backgroundColor = "#d32f2f"; // red
     } else {
-      bar.style.backgroundColor = "#ffffff"; // white
+      bar.style.backgroundColor = "#ffffff"; // default white
     }
     sidePanel.appendChild(bar);
   });
@@ -192,8 +186,20 @@ function updateSidePanel() {
 // =======================
 // Flashcard Session Functions
 // =======================
+
+// --- MODIFIED: startSession now creates deep copies with status reset ---
 function startSession(wordsArray, isGlobalMode = false) {
-  sessionWords = wordsArray.slice(); // copy array
+  sessionWords = wordsArray.map(word => {
+    return {
+      english: word.english,
+      hebrew: word.hebrew.slice(), // make a copy of the hebrew variants array
+      status: "default",           // reset session indicator to default
+      correctCount: word.correctCount,
+      incorrectCount: word.incorrectCount,
+      correctStreak: 0             // reset session streak
+      // In global sessions, we also later add parentListId as needed.
+    };
+  });
   currentWordIndex = -1;
   globalSessionMode = isGlobalMode;
   nextWord();
@@ -214,7 +220,6 @@ function displayCurrentWord() {
   if (mode === "engToHeb") {
     questionDiv.textContent = currentWord.english;
   } else {
-    // Hebrew-to-English: randomly choose one Hebrew variant.
     const randomIndex = Math.floor(Math.random() * currentWord.hebrew.length);
     questionDiv.textContent = currentWord.hebrew[randomIndex];
   }
@@ -264,29 +269,37 @@ function checkAnswer() {
   correctAnswerDiv.textContent = `Correct Answer: ${canonicalAnswer}`;
   updateSidePanel();
   
-  // Save updated statistics to the database.
+  // --- MODIFIED: Update the database with overall stats only,
+  // and force the DB "status" field to "default" so that next session starts fresh.
   if (!globalSessionMode && currentList) {
-    // Single-list mode: update the loaded list.
+    for (let word of currentList.words) {
+      if (word.english === currentWord.english &&
+          JSON.stringify(word.hebrew) === JSON.stringify(currentWord.hebrew)) {
+        word.correctCount = currentWord.correctCount;
+        word.incorrectCount = currentWord.incorrectCount;
+        word.correctStreak = currentWord.correctStreak;
+        word.status = "default"; // always save as default in DB
+        break;
+      }
+    }
     updateListInDB(currentList).then(() => {
-      console.log("List updated in DB.");
+      console.log("List updated in DB (single-list mode).");
     });
   } else if (globalSessionMode && currentWord.parentListId) {
-    // Global session mode: update the specific parent list for this word.
     getListFromDB(currentWord.parentListId).then(list => {
       if (list) {
-        // Find and update the matching word.
         for (let word of list.words) {
           if (word.english === currentWord.english &&
               JSON.stringify(word.hebrew) === JSON.stringify(currentWord.hebrew)) {
             word.correctCount = currentWord.correctCount;
             word.incorrectCount = currentWord.incorrectCount;
-            word.status = currentWord.status;
             word.correctStreak = currentWord.correctStreak;
+            word.status = "default"; // reset for DB storage
             break;
           }
         }
         updateListInDB(list).then(() => {
-          console.log("Parent list updated in DB.");
+          console.log("Parent list updated in DB (global mode).");
         });
       }
     });
@@ -294,12 +307,11 @@ function checkAnswer() {
 }
 
 // =======================
-// Statistics Modal
+// Statistics Modal (unchanged)
 // =======================
 function displayStatistics() {
   let listsToShow = [];
   if (globalSessionMode) {
-    // Global mode: show stats for all lists.
     getAllListsFromDB().then(lists => {
       listsToShow = lists;
       populateStatsTable(listsToShow);
@@ -346,7 +358,7 @@ window.onclick = function(event) {
 };
 
 // =======================
-// Button Event Listeners
+// Button Event Listeners (unchanged except for new Delete List functionality)
 // =======================
 checkButton.addEventListener("click", checkAnswer);
 nextButton.addEventListener("click", nextWord);
@@ -358,21 +370,17 @@ leastKnownButton.addEventListener("click", function() {
     let aggregatedWords = [];
     lists.forEach(list => {
       list.words.forEach(word => {
-        // Compute metric: incorrectCount / (total answers)
         const total = word.correctCount + word.incorrectCount;
         const metric = total > 0 ? word.incorrectCount / total : 0;
-        // Clone word and add parentListId.
         const wordClone = Object.assign({}, word);
         wordClone.parentListId = list.id;
         wordClone.metric = metric;
         aggregatedWords.push(wordClone);
       });
     });
-    // Sort descending (higher ratio means less known).
     aggregatedWords.sort((a, b) => b.metric - a.metric);
-    // Select top 20.
     const leastKnown = aggregatedWords.slice(0, 20);
-    startSession(leastKnown, true); // global session mode true.
+    startSession(leastKnown, true); // global session mode
     updateSidePanel();
   });
 });
@@ -420,6 +428,7 @@ loadListButton.addEventListener("click", function() {
   getListFromDB(selectedId).then(list => {
     if (list) {
       currentList = list;
+      // Start a session with a deep copy that resets the session status.
       startSession(currentList.words, false);
       globalSessionMode = false;
       updateSidePanel();
@@ -428,6 +437,7 @@ loadListButton.addEventListener("click", function() {
   });
 });
 
+// NEW: Delete List Button functionality.
 deleteListButton.addEventListener("click", function() {
   const selectedId = dbListSelect.value;
   if (!selectedId) {
@@ -438,7 +448,6 @@ deleteListButton.addEventListener("click", function() {
     deleteListFromDB(selectedId).then(() => {
       feedbackDiv.textContent = "List deleted.";
       populateListDropdown();
-      // If the deleted list is currently loaded, clear the session.
       if (currentList && currentList.id == selectedId) {
         currentList = null;
         sessionWords = [];
@@ -463,7 +472,7 @@ function populateListDropdown() {
 }
 
 // =======================
-// Initialization on Page Load
+// Initialization on Page Load (unchanged)
 // =======================
 window.addEventListener("load", function() {
   openDB().then(() => {
