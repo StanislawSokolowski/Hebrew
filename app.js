@@ -281,7 +281,7 @@ function checkAnswer() {
     feedbackDiv.textContent = "Incorrect. Try again.";
   }
   
-  // --- MODIFIED: Display the correct answer with nikkud in a larger font on a new line ---
+  // Display the correct answer in a larger font on a new line.
   correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
   
   updateSidePanel();
