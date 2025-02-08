@@ -10,8 +10,8 @@ body {
 }
 
 .container {
-  max-width: 900px;
-  margin: 40px auto;
+  max-width: 600px; /* Mobile friendly */
+  margin: 20px auto;
   padding: 20px;
   background-color: #1e1e1e;
   border-radius: 8px;
@@ -19,15 +19,15 @@ body {
 }
 
 h1 {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
-.db-controls {
-  margin-bottom: 20px;
+.mode-controls, .db-controls {
+  margin-bottom: 15px;
 }
 
 .controls {
-  margin: 15px 0;
+  margin: 10px 0;
 }
 
 label {
@@ -36,47 +36,69 @@ label {
   font-weight: 500;
 }
 
-input[type="file"],
+/* Hide the default file input */
+input[type="file"] {
+  display: none;
+}
+
+/* Custom styled file input label */
+.custom-file-label {
+  background-color: #317EFB;
+  color: #fff;
+  padding: 10px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-block;
+  margin-bottom: 5px;
+}
+
+/* Style for select, input text, and buttons */
 select,
-button,
 input[type="text"] {
   padding: 10px;
   font-size: 16px;
   border: none;
   border-radius: 4px;
   margin: 5px 0;
-}
-
-input[type="text"] {
   width: 100%;
   box-sizing: border-box;
 }
 
+/* Fancy button styling */
 button {
-  cursor: pointer;
-  background-color: #317EFB;
+  background: linear-gradient(45deg, #317EFB, #1e63d4);
   color: #fff;
+  padding: 10px 20px;
   border: none;
-  transition: background-color 0.3s ease;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin: 5px;
+  cursor: pointer;
 }
-
 button:hover {
-  background-color: #1e63d4;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(49,126,251,0.5);
 }
 
+/* Vertical layout for flashcard container */
 .flashcard-container {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
 }
 
 .flashcard {
-  flex: 2;
-  margin-right: 20px;
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 .question {
   font-size: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   min-height: 40px;
 }
 
@@ -84,7 +106,7 @@ button:hover {
   margin-bottom: 10px;
   font-size: 18px;
   font-weight: 500;
-  color: #388e3c; /* Correct Answer text color remains green */
+  color: #388e3c;
 }
 
 .buttons {
@@ -101,25 +123,19 @@ input.known {
   background-color: #388e3c;
   color: #fff;
 }
-
 input.wrong {
   background-color: #d32f2f;
   color: #fff;
 }
 
-/* Side panel for word status: many small indicators in columns */
+/* Side panel: vertical indicator layout */
 .side-panel {
-  flex: 1;
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  align-items: center;
-  border-left: 2px solid #444;
-  padding-left: 10px;
-  max-height: 400px;
-  overflow-y: auto;
+  margin-top: 10px;
 }
-
 .side-panel .word-bar {
   width: 12px;
   height: 12px;
@@ -157,7 +173,6 @@ input.wrong {
   font-weight: bold;
   cursor: pointer;
 }
-
 .close:hover,
 .close:focus {
   color: #fff;
@@ -168,11 +183,9 @@ table {
   width: 100%;
   border-collapse: collapse;
 }
-
 table, th, td {
   border: 1px solid #444;
 }
-
 th, td {
   padding: 8px;
   text-align: center;
@@ -180,7 +193,7 @@ th, td {
 
 /* New rule for larger nikkud answer */
 .nikkud-answer {
-  font-size: 36px; /* Adjust size as desired */
+  font-size: 36px;  /* Adjust size as desired */
   font-weight: bold;
   color: #388e3c;
 }
