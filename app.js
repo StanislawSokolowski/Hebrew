@@ -402,38 +402,70 @@ leastKnownButton.addEventListener("click", function() {
   });
 });
 
+// UPDATED: Allow multiple file selection and upload
 uploadFileButton.addEventListener("click", function() {
-  const file = fileInput.files[0];
-  if (!file) {
-    feedbackDiv.textContent = "Please select a file first.";
+  const files = fileInput.files;
+  if (!files || files.length === 0) {
+    feedbackDiv.textContent = "Please select at least one file first.";
     return;
   }
-  const reader = new FileReader();
-  reader.readAsText(file, "utf-16le");
-  reader.onload = function() {
-    const text = reader.result;
-    const wordsArray = parseDCPText(text);
-    if (wordsArray.length === 0) {
-      feedbackDiv.textContent = "No words found in the file.";
-      return;
-    }
-    const listName = prompt("Enter a name for this list:", file.name);
-    if (!listName) {
-      feedbackDiv.textContent = "List name is required.";
-      return;
-    }
-    const newList = {
-      name: listName,
-      words: wordsArray
+  let filesProcessed = 0;
+  let feedbackMessage = "";
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const reader = new FileReader();
+    reader.readAsText(file, "utf-16le");
+    reader.onload = function() {
+      const text = reader.result;
+      const wordsArray = parseDCPText(text);
+      if (wordsArray.length === 0) {
+        feedbackMessage += `No words found in file ${file.name}. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+        return;
+      }
+      const listName = prompt(`Enter a name for this list:`, file.name);
+      if (!listName) {
+        feedbackMessage += `List name is required for file ${file.name}. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+        return;
+      }
+      const newList = {
+        name: listName,
+        words: wordsArray
+      };
+      addListToDB(newList).then(list => {
+        feedbackMessage += `List "${list.name}" added with ${list.words.length} words. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+      }).catch(err => {
+        feedbackMessage += `Error adding file ${file.name} to DB. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+      });
     };
-    addListToDB(newList).then(list => {
-      feedbackDiv.textContent = `List "${list.name}" added with ${list.words.length} words.`;
-      populateListDropdown();
-    });
-  };
-  reader.onerror = function() {
-    feedbackDiv.textContent = "Error reading file.";
-  };
+    reader.onerror = function() {
+      feedbackMessage += `Error reading file ${file.name}. `;
+      filesProcessed++;
+      if (filesProcessed === files.length) {
+        feedbackDiv.textContent = feedbackMessage;
+        populateListDropdown();
+      }
+    };
+  }
 });
 
 loadListButton.addEventListener("click", function() {
