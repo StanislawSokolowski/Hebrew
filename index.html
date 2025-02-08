@@ -7,17 +7,27 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e1e1e">
-  <!-- Use Roboto for a modern English font -->
+  <!-- Using Roboto for a modern look -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,500&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
     <h1>Hebrew</h1>
     
-    <!-- Database controls -->
+    <!-- Mode Selector -->
+    <div class="mode-controls">
+      <label for="modeSelect">Select Mode:</label>
+      <select id="modeSelect">
+        <option value="engToHeb" selected>English to Hebrew</option>
+        <option value="hebToEng">Hebrew to English</option>
+      </select>
+    </div>
+    
+    <!-- Database Controls -->
     <div class="db-controls">
       <div class="controls">
-        <label for="fileInput">Upload .dcp File:</label>
+        <!-- Custom styled file input -->
+        <label for="fileInput" class="custom-file-label">Select .dcp File</label>
         <input type="file" id="fileInput" accept=".dcp">
         <button id="uploadFileButton">Load File to Database</button>
       </div>
@@ -33,11 +43,11 @@
       </div>
     </div>
     
-    <!-- Flashcard and side panel layout -->
+    <!-- Flashcard and Side Panel (vertical layout) -->
     <div class="flashcard-container">
       <div class="flashcard">
         <div id="question" class="question">Your question will appear here.</div>
-        <!-- Correct answer is now shown above the input field -->
+        <!-- Correct answer will be shown here (with large nikkud form) -->
         <div id="correctAnswer" class="correct-answer"></div>
         <input type="text" id="answer" placeholder="Type your answer">
         <div class="buttons">
@@ -46,8 +56,9 @@
         </div>
         <div id="feedback" class="feedback"></div>
       </div>
+      <!-- Side Panel: vertical indicator layout -->
       <div id="sidePanel" class="side-panel">
-        <!-- Colored small indicators will be inserted here -->
+        <!-- Indicators will be inserted here -->
       </div>
     </div>
   </div>
@@ -67,7 +78,7 @@
           </tr>
         </thead>
         <tbody>
-          <!-- Rows will be inserted here -->
+          <!-- Stats rows will be added here -->
         </tbody>
       </table>
     </div>
