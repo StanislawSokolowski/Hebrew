@@ -27,9 +27,10 @@
     <div class="db-controls">
       <div class="controls">
         <!-- Custom styled file input -->
-        <label for="fileInput" class="custom-file-label">Select .dcp File</label>
-        <input type="file" id="fileInput" accept=".dcp">
-        <button id="uploadFileButton">Load File to Database</button>
+        <label for="fileInput" class="custom-file-label">Select .dcp File(s)</label>
+        <!-- Note the "multiple" attribute -->
+        <input type="file" id="fileInput" accept=".dcp" multiple>
+        <button id="uploadFileButton">Load File(s) to Database</button>
       </div>
       <div class="controls">
         <label for="dbListSelect">Choose a List:</label>
