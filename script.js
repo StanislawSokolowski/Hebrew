@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateListDropdown();
   updateTestListDropdown();
   addEventListeners();
+  setupDropdownToggles();
 
   // Register service worker for PWA
   if ("serviceWorker" in navigator) {
@@ -93,23 +94,31 @@ function addEventListeners() {
   document.getElementById("next-word-btn").addEventListener("click", nextWord);
   document.getElementById("load-least-known-btn").addEventListener("click", loadLeastKnown);
   document.getElementById("start-test-btn").addEventListener("click", startTest);
+}
 
-  // Dropdown toggle on click
-  const dropdowns = document.querySelectorAll('.dropdown');
-  dropdowns.forEach(dropdown => {
-    const button = dropdown.querySelector('.dropbtn');
-    button.addEventListener('click', function(e) {
+// Setup dropdown toggling using direct style changes
+function setupDropdownToggles() {
+  // For each button with class "dropbtn", toggle its next sibling (.dropdown-content)
+  const dropbtns = document.querySelectorAll('.dropbtn');
+  dropbtns.forEach(btn => {
+    btn.addEventListener('click', function(e) {
       e.stopPropagation();
-      dropdown.classList.toggle('active');
-    });
-  });
-  // Close dropdowns if clicking outside
-  document.addEventListener('click', function(e) {
-    dropdowns.forEach(dropdown => {
-      if (!dropdown.contains(e.target)) {
-        dropdown.classList.remove('active');
+      const dropdownContent = btn.nextElementSibling;
+      if (dropdownContent) {
+        // Toggle display style between "block" and "none"
+        if (dropdownContent.style.display === "block") {
+          dropdownContent.style.display = "none";
+        } else {
+          // Hide all dropdown contents first
+          document.querySelectorAll('.dropdown-content').forEach(dd => dd.style.display = "none");
+          dropdownContent.style.display = "block";
+        }
       }
     });
+  });
+  // Hide all dropdown contents when clicking anywhere outside
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('.dropdown-content').forEach(dd => dd.style.display = "none");
   });
 }
 
@@ -145,7 +154,7 @@ function loadFiles() {
   });
 }
 
-// Parse a .dcp file (ignores lines that start with "HtE" or "@" or are empty)
+// Parse a .dcp file (ignores lines that start with "HtE", "@" or are empty)
 function parseDCPFile(content) {
   const lines = content.split(/\r?\n/);
   const words = [];
@@ -215,6 +224,7 @@ function importDatabase() {
 }
 
 // --- Statistics Functions ---
+
 function showListStats() {
   const listSelect = document.getElementById("list-select");
   const listName = listSelect.value;
