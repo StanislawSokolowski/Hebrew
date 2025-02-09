@@ -9,6 +9,8 @@
   <meta name="theme-color" content="#1e1e1e">
   <!-- Using Roboto for a modern look -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,500&display=swap" rel="stylesheet">
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
@@ -28,7 +30,6 @@
       <div class="controls">
         <!-- Custom styled file input -->
         <label for="fileInput" class="custom-file-label">Select .dcp File(s)</label>
-        <!-- Note the "multiple" attribute -->
         <input type="file" id="fileInput" accept=".dcp" multiple>
         <button id="uploadFileButton">Load File(s) to Database</button>
       </div>
@@ -40,15 +41,19 @@
       </div>
       <div class="controls">
         <button id="leastKnownButton">Check 20 Least Known Words</button>
-        <button id="statsButton">Display Statistics</button>
+        <button id="statsButton">Show Word Statistics</button>
+      </div>
+      <div class="controls">
+        <button id="wordGraphButton">Show Word Ratio Graph</button>
+        <button id="progressGraphButton">Show Progress Graph</button>
+        <button id="progressTableButton">Show Progress Table</button>
       </div>
     </div>
     
-    <!-- Flashcard and Side Panel (vertical layout) -->
+    <!-- Flashcard and Side Panel -->
     <div class="flashcard-container">
       <div class="flashcard">
         <div id="question" class="question">Your question will appear here.</div>
-        <!-- Correct answer will be shown here (with large nikkud form) -->
         <div id="correctAnswer" class="correct-answer"></div>
         <input type="text" id="answer" placeholder="Type your answer">
         <div class="buttons">
@@ -57,17 +62,14 @@
         </div>
         <div id="feedback" class="feedback"></div>
       </div>
-      <!-- Side Panel: vertical indicator layout -->
-      <div id="sidePanel" class="side-panel">
-        <!-- Indicators will be inserted here -->
-      </div>
+      <div id="sidePanel" class="side-panel"></div>
     </div>
   </div>
   
-  <!-- Statistics Modal -->
+  <!-- Modals -->
   <div id="statsModal" class="modal">
     <div class="modal-content">
-      <span id="closeModal" class="close">&times;</span>
+      <span id="closeStatsModal" class="close">&times;</span>
       <h2>Word Statistics</h2>
       <table id="statsTable">
         <thead>
@@ -78,25 +80,44 @@
             <th>Ratio</th>
           </tr>
         </thead>
-        <tbody>
-          <!-- Stats rows will be added here -->
-        </tbody>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div id="graphModal" class="modal">
+    <div class="modal-content">
+      <span id="closeGraphModal" class="close">&times;</span>
+      <h2>Word Ratio Graph</h2>
+      <canvas id="wordGraphCanvas"></canvas>
+    </div>
+  </div>
+  
+  <div id="progressModal" class="modal">
+    <div class="modal-content">
+      <span id="closeProgressModal" class="close">&times;</span>
+      <h2>Daily Progress Graph</h2>
+      <canvas id="progressGraphCanvas"></canvas>
+    </div>
+  </div>
+  
+  <div id="progressTableModal" class="modal">
+    <div class="modal-content">
+      <span id="closeProgressTableModal" class="close">&times;</span>
+      <h2>Daily Progress Table</h2>
+      <table id="progressTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Words Learned</th>
+            <th>Tests Done</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
   </div>
   
   <script src="app.js"></script>
-  <script>
-    // Register service worker for offline support
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js')
-      .then(function(registration) {
-        console.log('Service Worker registered with scope:', registration.scope);
-      })
-      .catch(function(error) {
-        console.log('Service Worker registration failed:', error);
-      });
-    }
-  </script>
 </body>
 </html>
