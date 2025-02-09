@@ -2,15 +2,15 @@
 
 // Global database object
 let database = {
-  lists: {},       // { listName: [ { english, hebrewOptions, stats: { correct, incorrect } }, ... ] }
-  dailyProgress: [] // [ { date, knownCount, listsCompleted }, ... ]
+  lists: {},       // e.g., { "List1": [ { english, hebrewOptions, stats: { correct, incorrect } }, ... ] }
+  dailyProgress: [] // e.g., [ { date, knownCount, listsCompleted }, ... ]
 };
 
 // Test session state
 let currentListName = "";
 let currentSession = [];  // Randomized words for the current test session
 let currentWordIndex = -1;
-let mode = "en-to-he";    // "en-to-he" or "he-to-en"
+let mode = "en-to-he";    // Either "en-to-he" or "he-to-en"
 let answeredThisWord = false;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,11 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTestListDropdown();
   addEventListeners();
 
-  // When a new list is selected, reset and start the test automatically.
-  const testListSelect = document.getElementById("test-list-select");
-  testListSelect.addEventListener("change", resetTestSession);
-  // (Optional) Also trigger on click so that reselecting the same list resets the session.
-  testListSelect.addEventListener("click", resetTestSession);
+  // When the "Start Test" button is clicked, start/reset the session.
+  document.getElementById("start-test-btn").addEventListener("click", startTest);
 
   // Register service worker if supported.
   if ("serviceWorker" in navigator) {
@@ -126,7 +123,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If this list is the current one, clear old indicators.
+        // If this list is the current one, clear any old indicators.
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -303,13 +300,16 @@ function showDatabaseStats() {
 }
 
 // ===== Flashcard Practice Functions =====
-// This function resets the test state and immediately starts a new test using the selected list.
-// It is triggered when the "test-list-select" dropdown changes (or is clicked).
-function resetTestSession() {
+// This function is triggered when the user clicks the "Start Test" button.
+// It resets all test state and immediately starts a new session using the selected list.
+function startTest() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
-  
-  // Clear previous test state
+  if (!selectedList) {
+    alert("Please select a list to start the test.");
+    return;
+  }
+  // Reset previous test state completely.
   currentSession = [];
   currentWordIndex = -1;
   answeredThisWord = false;
@@ -318,24 +318,20 @@ function resetTestSession() {
   document.getElementById("correct-answer-display").textContent = "";
   document.getElementById("question-display").textContent = "";
   document.getElementById("test-info").textContent = "";
-  
-  if (!selectedList) return;
-  
+
   currentListName = selectedList;
   const wordList = database.lists[selectedList] || [];
   if (wordList.length === 0) {
     alert("The selected list is empty.");
     return;
   }
-  
-  // Randomize the words for the new session.
+
+  // Randomize the words and set as the current session.
   currentSession = shuffle([...wordList]);
-  // Create new indicator squares.
   populateIndicators(currentSession.length);
-  // Update test info.
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
-  
-  // Set session index to 0 and display the first word immediately.
+
+  // Set session index to 0 and immediately display the first word.
   currentWordIndex = 0;
   answeredThisWord = false;
   const firstWord = currentSession[0];
@@ -354,7 +350,7 @@ function shuffle(array) {
   return array;
 }
 
-// Creates indicator squares for each word in the current session.
+// Creates indicator squares (one per word in the current session).
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -377,7 +373,7 @@ function populateIndicators(count) {
 // Advances to the next word in the current session.
 function nextWord() {
   if (currentSession.length === 0) {
-    alert("No active test session. Please select a list from the dropdown.");
+    alert("No active test session. Please click 'Start Test' first.");
     return;
   }
   currentWordIndex++;
