@@ -1,16 +1,21 @@
 /* app.js */
 
-// =======================
-// IndexedDB Setup
-// =======================
+// -----------------------
+// IndexedDB Setup (v2)
+// -----------------------
 let db;
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("HebrewDB", 1);
+    // Use version 2 to add the "progress" store
+    const request = indexedDB.open("HebrewDB", 2);
     request.onupgradeneeded = function(e) {
       db = e.target.result;
       if (!db.objectStoreNames.contains("lists")) {
         db.createObjectStore("lists", { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains("progress")) {
+        // Use the date (YYYY-MM-DD) as the key
+        db.createObjectStore("progress", { keyPath: "date" });
       }
     };
     request.onsuccess = function(e) {
@@ -94,9 +99,52 @@ function deleteListFromDB(id) {
   });
 }
 
-// =======================
+// -----------------------
+// Progress Store Functions
+// -----------------------
+function getProgressRecord(date) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["progress"], "readonly");
+    const store = transaction.objectStore("progress");
+    const request = store.get(date);
+    request.onsuccess = e => resolve(e.target.result);
+    request.onerror = e => reject(e);
+  });
+}
+
+function addProgressRecord(record) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["progress"], "readwrite");
+    const store = transaction.objectStore("progress");
+    const request = store.add(record);
+    request.onsuccess = e => resolve(record);
+    request.onerror = e => reject(e);
+  });
+}
+
+function updateProgressRecord(record) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["progress"], "readwrite");
+    const store = transaction.objectStore("progress");
+    const request = store.put(record);
+    request.onsuccess = e => resolve(record);
+    request.onerror = e => reject(e);
+  });
+}
+
+function getAllProgressRecords() {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["progress"], "readonly");
+    const store = transaction.objectStore("progress");
+    const request = store.getAll();
+    request.onsuccess = e => resolve(e.target.result);
+    request.onerror = e => reject(e);
+  });
+}
+
+// -----------------------
 // Utility Functions
-// =======================
+// -----------------------
 function containsNikkud(text) {
   return /[\u0591-\u05C7]/.test(text);
 }
@@ -125,7 +173,7 @@ function parseDCPText(text) {
       wordsArray.push({
         english: english,
         hebrew: hebrewVariants,
-        status: "default",      // overall DB field (will be reset to default on new session)
+        status: "default",
         correctStreak: 0,
         correctCount: 0,
         incorrectCount: 0
@@ -135,37 +183,53 @@ function parseDCPText(text) {
   return wordsArray;
 }
 
-// =======================
+// -----------------------
 // Global Variables & UI Elements
-// =======================
-let currentList = null;     // Loaded list object {id, name, words: [...]}
-let sessionWords = [];      // For current flashcard session (deep copies of words)
-let currentWordIndex = -1;  // Index into sessionWords
-let globalSessionMode = false; // false = single list session; true = global session.
+// -----------------------
+let currentList = null; // Loaded list object
+let sessionWords = [];  // Deep copies for the current session
+let currentWordIndex = -1;
+let globalSessionMode = false;
+let progressRecorded = false; // To ensure progress is recorded only once per session
 
-const fileInput         = document.getElementById("fileInput");
-const uploadFileButton  = document.getElementById("uploadFileButton");
-const dbListSelect      = document.getElementById("dbListSelect");
-const loadListButton    = document.getElementById("loadListButton");
-const deleteListButton  = document.getElementById("deleteListButton");
-const leastKnownButton  = document.getElementById("leastKnownButton");
-const statsButton       = document.getElementById("statsButton");
+const fileInput = document.getElementById("fileInput");
+const uploadFileButton = document.getElementById("uploadFileButton");
+const dbListSelect = document.getElementById("dbListSelect");
+const loadListButton = document.getElementById("loadListButton");
+const deleteListButton = document.getElementById("deleteListButton");
+const leastKnownButton = document.getElementById("leastKnownButton");
+const statsButton = document.getElementById("statsButton");
+const wordGraphButton = document.getElementById("wordGraphButton");
+const progressGraphButton = document.getElementById("progressGraphButton");
+const progressTableButton = document.getElementById("progressTableButton");
 
-const questionDiv       = document.getElementById("question");
-const correctAnswerDiv  = document.getElementById("correctAnswer");
-const answerInput       = document.getElementById("answer");
-const checkButton       = document.getElementById("checkButton");
-const nextButton        = document.getElementById("nextButton");
-const feedbackDiv       = document.getElementById("feedback");
-const sidePanel         = document.getElementById("sidePanel");
+const questionDiv = document.getElementById("question");
+const correctAnswerDiv = document.getElementById("correctAnswer");
+const answerInput = document.getElementById("answer");
+const checkButton = document.getElementById("checkButton");
+const nextButton = document.getElementById("nextButton");
+const feedbackDiv = document.getElementById("feedback");
+const sidePanel = document.getElementById("sidePanel");
 
-const statsModal        = document.getElementById("statsModal");
-const closeModal        = document.getElementById("closeModal");
-const statsTableBody    = document.querySelector("#statsTable tbody");
+const statsModal = document.getElementById("statsModal");
+const closeStatsModal = document.getElementById("closeStatsModal");
+const statsTableBody = document.querySelector("#statsTable tbody");
 
-// =======================
+const graphModal = document.getElementById("graphModal");
+const closeGraphModal = document.getElementById("closeGraphModal");
+const wordGraphCanvas = document.getElementById("wordGraphCanvas");
+
+const progressModal = document.getElementById("progressModal");
+const closeProgressModal = document.getElementById("closeProgressModal");
+const progressGraphCanvas = document.getElementById("progressGraphCanvas");
+
+const progressTableModal = document.getElementById("progressTableModal");
+const closeProgressTableModal = document.getElementById("closeProgressTableModal");
+const progressTableBody = document.querySelector("#progressTable tbody");
+
+// -----------------------
 // Helper Function: Shuffle (Fisher-Yates)
-// =======================
+// -----------------------
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -174,9 +238,9 @@ function shuffle(array) {
   return array;
 }
 
-// =======================
-// Side Panel Update: Small, multi-column indicators
-// =======================
+// -----------------------
+// Side Panel Update
+// -----------------------
 function updateSidePanel() {
   sidePanel.innerHTML = "";
   if (!sessionWords || sessionWords.length === 0) return;
@@ -184,37 +248,33 @@ function updateSidePanel() {
     const bar = document.createElement("div");
     bar.className = "word-bar";
     if (word.status === "known") {
-      bar.style.backgroundColor = "#388e3c"; // green
+      bar.style.backgroundColor = "#388e3c";
     } else if (word.status === "wrong") {
-      bar.style.backgroundColor = "#d32f2f"; // red
+      bar.style.backgroundColor = "#d32f2f";
     } else {
-      bar.style.backgroundColor = "#ffffff"; // default white
+      bar.style.backgroundColor = "#ffffff";
     }
     sidePanel.appendChild(bar);
   });
 }
 
-// =======================
+// -----------------------
 // Flashcard Session Functions
-// =======================
-
-// When starting a session, create deep copies of words, reset status to default, and shuffle the order.
+// -----------------------
 function startSession(wordsArray, isGlobalMode = false) {
+  progressRecorded = false; // Reset flag for this session
   sessionWords = wordsArray.map(word => {
     return {
       english: word.english,
-      hebrew: word.hebrew.slice(), // copy array
-      status: "default",           // reset session indicator to default
+      hebrew: word.hebrew.slice(),
+      status: "default",
       correctCount: word.correctCount,
       incorrectCount: word.incorrectCount,
-      correctStreak: 0             // reset session streak
+      correctStreak: 0
       // For global sessions, parentListId will be added later as needed.
     };
   });
-  
-  // Randomize the order of words.
   shuffle(sessionWords);
-  
   currentWordIndex = -1;
   globalSessionMode = isGlobalMode;
   nextWord();
@@ -281,13 +341,11 @@ function checkAnswer() {
     feedbackDiv.textContent = "Incorrect. Try again.";
   }
   
-  // Display the correct answer in a larger font on a new line.
   correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
   
   updateSidePanel();
   
-  // Update overall statistics in the database.
-  // In the database, we always save the word's status as "default" (so next session starts fresh)
+  // Update overall statistics in the database (save with default status).
   if (!globalSessionMode && currentList) {
     for (let word of currentList.words) {
       if (word.english === currentWord.english &&
@@ -295,7 +353,7 @@ function checkAnswer() {
         word.correctCount = currentWord.correctCount;
         word.incorrectCount = currentWord.incorrectCount;
         word.correctStreak = currentWord.correctStreak;
-        word.status = "default"; // stored DB status is always default
+        word.status = "default";
         break;
       }
     }
@@ -311,7 +369,7 @@ function checkAnswer() {
             word.correctCount = currentWord.correctCount;
             word.incorrectCount = currentWord.incorrectCount;
             word.correctStreak = currentWord.correctStreak;
-            word.status = "default"; // reset for DB storage
+            word.status = "default";
             break;
           }
         }
@@ -321,65 +379,152 @@ function checkAnswer() {
       }
     });
   }
-}
-
-// =======================
-// Statistics Modal Functions
-// =======================
-function displayStatistics() {
-  let listsToShow = [];
-  if (globalSessionMode) {
-    getAllListsFromDB().then(lists => {
-      listsToShow = lists;
-      populateStatsTable(listsToShow);
-      statsModal.style.display = "block";
-    });
-  } else if (currentList) {
-    populateStatsTable([currentList]);
-    statsModal.style.display = "block";
+  
+  // If all words in the session are known, display a "Well done" message and record progress.
+  if (sessionWords.every(word => word.status === "known")) {
+    feedbackDiv.textContent += " Well done!";
+    recordProgress(sessionWords.length);
   }
 }
 
-function populateStatsTable(lists) {
-  statsTableBody.innerHTML = "";
-  lists.forEach(list => {
-    list.words.forEach(word => {
-      const row = document.createElement("tr");
-      const wordCell = document.createElement("td");
-      wordCell.textContent = word.english;
-      const correctCell = document.createElement("td");
-      correctCell.textContent = word.correctCount;
-      const incorrectCell = document.createElement("td");
-      incorrectCell.textContent = word.incorrectCount;
+// -----------------------
+// Progress Recording
+// -----------------------
+function recordProgress(wordsLearned) {
+  if (progressRecorded) return;
+  progressRecorded = true;
+  const today = new Date();
+  const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+  getProgressRecord(dateStr).then(record => {
+    if (record) {
+      record.wordsLearned += wordsLearned;
+      record.testsDone += 1;
+      updateProgressRecord(record);
+    } else {
+      const newRecord = { date: dateStr, wordsLearned: wordsLearned, testsDone: 1 };
+      addProgressRecord(newRecord);
+    }
+  }).catch(err => console.error(err));
+}
+
+// -----------------------
+// Statistics Modal Functions (Word Stats)
+// -----------------------
+function displayStatistics() {
+  getAllListsFromDB().then(lists => {
+    let allWords = [];
+    lists.forEach(list => {
+      list.words.forEach(word => {
+        allWords.push({ english: word.english, correctCount: word.correctCount, incorrectCount: word.incorrectCount });
+      });
+    });
+    // Build table rows.
+    statsTableBody.innerHTML = "";
+    allWords.forEach(word => {
       const total = word.correctCount + word.incorrectCount;
-      const ratioCell = document.createElement("td");
       const ratio = total > 0 ? (word.incorrectCount / total).toFixed(2) : "0.00";
-      ratioCell.textContent = ratio;
-      row.appendChild(wordCell);
-      row.appendChild(correctCell);
-      row.appendChild(incorrectCell);
-      row.appendChild(ratioCell);
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${word.english}</td><td>${word.correctCount}</td><td>${word.incorrectCount}</td><td>${ratio}</td>`;
       statsTableBody.appendChild(row);
     });
+    statsModal.style.display = "block";
   });
 }
 
-closeModal.onclick = function() {
-  statsModal.style.display = "none";
-};
+// -----------------------
+// Graph Functions using Chart.js
+// -----------------------
+let wordChart;
+function showWordGraph() {
+  getAllListsFromDB().then(lists => {
+    let allWords = [];
+    lists.forEach(list => {
+      list.words.forEach(word => {
+        const total = word.correctCount + word.incorrectCount;
+        const ratio = total > 0 ? (word.incorrectCount / total) : 0;
+        allWords.push({ label: word.english, ratio: ratio });
+      });
+    });
+    const labels = allWords.map(w => w.label);
+    const data = allWords.map(w => w.ratio);
+    const ctx = document.getElementById("wordGraphCanvas").getContext("2d");
+    if (wordChart) wordChart.destroy();
+    wordChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Incorrect Ratio',
+          data: data,
+          backgroundColor: 'rgba(211,47,47,0.7)'
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 1
+          }
+        }
+      }
+    });
+    document.getElementById("graphModal").style.display = "block";
+  });
+}
 
-window.onclick = function(event) {
-  if (event.target == statsModal) {
-    statsModal.style.display = "none";
-  }
-};
+let progressChart;
+function showProgressGraph() {
+  getAllProgressRecords().then(records => {
+    records.sort((a, b) => a.date.localeCompare(b.date));
+    const labels = records.map(r => r.date);
+    const data = records.map(r => r.wordsLearned);
+    const ctx = document.getElementById("progressGraphCanvas").getContext("2d");
+    if (progressChart) progressChart.destroy();
+    progressChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Words Learned',
+          data: data,
+          backgroundColor: 'rgba(56,142,60,0.7)'
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+    document.getElementById("progressModal").style.display = "block";
+  });
+}
 
-// =======================
-// Button Event Listeners
-// =======================
+function showProgressTable() {
+  getAllProgressRecords().then(records => {
+    records.sort((a, b) => a.date.localeCompare(b.date));
+    const tbody = document.querySelector("#progressTable tbody");
+    tbody.innerHTML = "";
+    records.forEach(record => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${record.date}</td><td>${record.wordsLearned}</td><td>${record.testsDone}</td>`;
+      tbody.appendChild(row);
+    });
+    document.getElementById("progressTableModal").style.display = "block";
+  });
+}
+
+// -----------------------
+// Event Listeners for New Buttons and Modal Closes
+// -----------------------
 checkButton.addEventListener("click", checkAnswer);
 nextButton.addEventListener("click", nextWord);
 statsButton.addEventListener("click", displayStatistics);
+wordGraphButton.addEventListener("click", showWordGraph);
+progressGraphButton.addEventListener("click", showProgressGraph);
+progressTableButton.addEventListener("click", showProgressTable);
 
 leastKnownButton.addEventListener("click", function() {
   // Global least-known session: aggregate words from all lists.
@@ -388,7 +533,7 @@ leastKnownButton.addEventListener("click", function() {
     lists.forEach(list => {
       list.words.forEach(word => {
         const total = word.correctCount + word.incorrectCount;
-        const metric = total > 0 ? word.incorrectCount / total : 0;
+        const metric = total > 0 ? (word.incorrectCount / total) : 0;
         const wordClone = Object.assign({}, word);
         wordClone.parentListId = list.id;
         wordClone.metric = metric;
@@ -397,12 +542,12 @@ leastKnownButton.addEventListener("click", function() {
     });
     aggregatedWords.sort((a, b) => b.metric - a.metric);
     const leastKnown = aggregatedWords.slice(0, 20);
-    startSession(leastKnown, true); // global session mode
+    startSession(leastKnown, true);
     updateSidePanel();
   });
 });
 
-// UPDATED: Allow multiple file selection and upload with default name suggestion.
+// Allow multiple file upload with default name suggestion.
 uploadFileButton.addEventListener("click", function() {
   const files = fileInput.files;
   if (!files || files.length === 0) {
@@ -428,9 +573,7 @@ uploadFileButton.addEventListener("click", function() {
         return;
       }
       let defaultName = file.name;
-      // Remove "HtE" prefix if present (case-insensitive)
       defaultName = defaultName.replace(/^HtE/i, '');
-      // Remove ".dcp" extension if present
       if (defaultName.toLowerCase().endsWith(".dcp")) {
         defaultName = defaultName.slice(0, -4);
       }
@@ -484,7 +627,6 @@ loadListButton.addEventListener("click", function() {
   getListFromDB(selectedId).then(list => {
     if (list) {
       currentList = list;
-      // Start a new session with deep copies (status reset) and shuffle the order.
       startSession(currentList.words, false);
       globalSessionMode = false;
       updateSidePanel();
@@ -513,10 +655,9 @@ deleteListButton.addEventListener("click", function() {
   }
 });
 
-// Populate the dropdown with lists from the database, sorted alphabetically by name.
+// Populate the dropdown with lists sorted alphabetically.
 function populateListDropdown() {
   getAllListsFromDB().then(lists => {
-    // Sort lists alphabetically (case-insensitive)
     lists.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     dbListSelect.innerHTML = "";
     lists.forEach(list => {
@@ -528,9 +669,24 @@ function populateListDropdown() {
   });
 }
 
-// =======================
-// Initialization on Page Load
-// =======================
+// -----------------------
+// Modal Close Event Listeners
+// -----------------------
+closeStatsModal.addEventListener("click", () => { statsModal.style.display = "none"; });
+closeGraphModal.addEventListener("click", () => { graphModal.style.display = "none"; });
+closeProgressModal.addEventListener("click", () => { progressModal.style.display = "none"; });
+closeProgressTableModal.addEventListener("click", () => { progressTableModal.style.display = "none"; });
+
+window.addEventListener("click", function(event) {
+  if (event.target === statsModal) statsModal.style.display = "none";
+  if (event.target === graphModal) graphModal.style.display = "none";
+  if (event.target === progressModal) progressModal.style.display = "none";
+  if (event.target === progressTableModal) progressTableModal.style.display = "none";
+});
+
+// -----------------------
+// Initialization
+// -----------------------
 window.addEventListener("load", function() {
   openDB().then(() => {
     populateListDropdown();
