@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hebrew Flashcards</title>
-  <!-- Link to the PWA manifest -->
   <link rel="manifest" href="manifest.json">
-  <!-- Link to the favicon using your 192px icon -->
   <link rel="icon" href="icons/icon-192.png" type="image/png">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>Hebrew</h1>
+    <h1>Hebrew Flashcards</h1>
   </header>
   <main>
     <!-- Database Management Section -->
@@ -22,14 +20,13 @@
         <button class="dropbtn" onclick="toggleDropdown(this)">Manage Database</button>
         <div class="dropdown-content">
           <div>
-            <!-- Custom file input for .dcp files wrapped in a label -->
             <label class="file-input-button">
               Choose Files
               <input type="file" id="file-input" multiple accept=".dcp">
             </label>
-            <button id="load-files-btn">Load Selected Files</button>
+            <button id="load-files-btn">Load Files</button>
           </div>
-          <hr />
+          <hr>
           <div>
             <label for="list-select">Choose List:</label>
             <select id="list-select">
@@ -37,10 +34,9 @@
             </select>
             <button id="delete-list-btn">Delete List</button>
           </div>
-          <hr />
+          <hr>
           <div>
             <button id="export-db-btn">Export Database</button>
-            <!-- Custom file input for JSON import wrapped in a label -->
             <label class="file-input-button">
               Choose Import File
               <input type="file" id="import-db-input" accept=".json">
@@ -50,6 +46,7 @@
         </div>
       </div>
     </section>
+
     <!-- Statistics Section -->
     <section id="statistics">
       <h2>Statistics</h2>
@@ -57,7 +54,7 @@
         <button class="dropbtn" onclick="toggleDropdown(this)">Statistics Options</button>
         <div class="dropdown-content">
           <button id="show-db-stats-btn">Show Database Stats</button>
-          <button id="show-list-stats-btn">Show List Statistics</button>
+          <button id="show-list-stats-btn">Show List Stats</button>
           <button id="show-histogram-btn">Show Ratio Histogram</button>
           <button id="show-daily-progress-graph-btn">Show Daily Progress Graph</button>
           <button id="show-daily-progress-table-btn">Show Daily Progress Table</button>
@@ -65,6 +62,7 @@
       </div>
       <div id="stats-display"></div>
     </section>
+
     <!-- Flashcard Practice Section -->
     <section id="practice">
       <h2>Practice Mode</h2>
@@ -75,7 +73,6 @@
           <option value="he-to-en">Hebrew to English</option>
         </select>
       </div>
-      <!-- Test selection block (Start Test button removed) -->
       <div id="test-selection">
         <label for="test-list-select">Select List for Test:</label>
         <select id="test-list-select">
@@ -83,25 +80,21 @@
         </select>
       </div>
       <div id="flashcard">
-        <div id="question-display" class="flashcard-question">
-          Press "Next Word" to begin
-        </div>
+        <div id="question-display" class="flashcard-question"></div>
         <div id="correct-answer-display" class="flashcard-answer"></div>
         <input type="text" id="answer-input" placeholder="Type your answer here">
         <div class="flashcard-buttons">
           <button id="check-answer-btn">Check</button>
           <button id="next-word-btn">Next Word</button>
         </div>
-        <!-- Feedback indicators -->
         <div id="feedback-indicators" class="indicators"></div>
       </div>
-      <!-- Display test info -->
       <p id="test-info"></p>
       <button id="load-least-known-btn">Load 20 Least Known Words</button>
     </section>
   </main>
   <footer>
-    <p>&copy; 2025 Stanislaw Sokolowski</p>
+    <p>&copy; 2025 Hebrew Flashcards</p>
   </footer>
   <script src="script.js"></script>
 </body>

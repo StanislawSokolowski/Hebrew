@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTestListDropdown();
   addEventListeners();
 
-  // Automatically reset/start the test session when the test list selection changes.
+  // Reset and start test automatically when the test-list dropdown changes.
   document.getElementById("test-list-select").addEventListener("change", resetTestSession);
 
   // Register service worker if supported.
@@ -38,7 +38,6 @@ function toggleDropdown(button) {
   }
 }
 
-// Only close dropdowns if the click is outside any dropdown container.
 window.onclick = function(event) {
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -117,7 +116,6 @@ function loadFiles() {
     const reader = new FileReader();
     reader.onload = event => {
       const content = event.target.result;
-      // Use the file name (without extension) as the list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
       const words = parseDCPFile(content);
       if (words.length) {
@@ -125,7 +123,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If the loaded list is currently active, clear previous indicators.
+        // If the loaded list is the current one, clear old indicators.
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -302,13 +300,12 @@ function showDatabaseStats() {
 }
 
 // ===== Flashcard Practice Functions =====
-// This function resets all test state and immediately starts the test
-// using the list selected in the "Select List for Test" dropdown.
+// This function resets all test state and immediately starts a new test using the selected list.
 function resetTestSession() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
   
-  // Clear previous test state
+  // Clear previous test state.
   currentSession = [];
   currentWordIndex = -1;
   answeredThisWord = false;
@@ -327,22 +324,21 @@ function resetTestSession() {
     return;
   }
   
-  // Randomize words and set as current session
+  // Randomize the words for the new session.
   currentSession = shuffle([...wordList]);
   populateIndicators(currentSession.length);
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
   
-  // Set session index to 0 and display the first word immediately
+  // Immediately display the first word.
   currentWordIndex = 0;
   answeredThisWord = false;
   const firstWord = currentSession[currentWordIndex];
   document.getElementById("question-display").textContent =
     mode === "en-to-he" ? firstWord.english : firstWord.hebrewOptions[0];
-  // Focus the answer input field for immediate typing
   document.getElementById("answer-input").focus();
 }
 
-// Fisher–Yates shuffle to randomize an array
+// Fisher–Yates shuffle
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -351,7 +347,7 @@ function shuffle(array) {
   return array;
 }
 
-// Creates indicator squares for each word in the current session.
+// Creates indicator squares (one per word in the current session).
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -394,7 +390,7 @@ function nextWord() {
   document.getElementById("answer-input").focus();
 }
 
-// Checks the answer for the current word and updates its corresponding indicator.
+// Checks the answer for the current word and updates its indicator.
 function checkAnswer() {
   if (currentWordIndex < 0 || currentWordIndex >= currentSession.length) {
     alert("Please click 'Next Word' first.");
@@ -425,7 +421,7 @@ function checkAnswer() {
   answeredThisWord = true;
 }
 
-// Records daily progress and saves it to the database.
+// Records daily progress.
 function recordDailyProgress() {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
