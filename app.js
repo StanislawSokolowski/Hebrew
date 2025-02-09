@@ -402,7 +402,7 @@ leastKnownButton.addEventListener("click", function() {
   });
 });
 
-// UPDATED: Allow multiple file selection and upload
+// UPDATED: Allow multiple file selection and upload with default name suggestion.
 uploadFileButton.addEventListener("click", function() {
   const files = fileInput.files;
   if (!files || files.length === 0) {
@@ -427,7 +427,14 @@ uploadFileButton.addEventListener("click", function() {
         }
         return;
       }
-      const listName = prompt(`Enter a name for this list:`, file.name);
+      let defaultName = file.name;
+      // Remove "HtE" prefix if present (case-insensitive)
+      defaultName = defaultName.replace(/^HtE/i, '');
+      // Remove ".dcp" extension if present
+      if (defaultName.toLowerCase().endsWith(".dcp")) {
+        defaultName = defaultName.slice(0, -4);
+      }
+      const listName = prompt(`Enter a name for this list:`, defaultName);
       if (!listName) {
         feedbackMessage += `List name is required for file ${file.name}. `;
         filesProcessed++;
@@ -506,9 +513,11 @@ deleteListButton.addEventListener("click", function() {
   }
 });
 
-// Populate the dropdown with lists from the database.
+// Populate the dropdown with lists from the database, sorted alphabetically by name.
 function populateListDropdown() {
   getAllListsFromDB().then(lists => {
+    // Sort lists alphabetically (case-insensitive)
+    lists.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     dbListSelect.innerHTML = "";
     lists.forEach(list => {
       const option = document.createElement("option");
