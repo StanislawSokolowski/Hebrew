@@ -344,7 +344,7 @@ function checkAnswer() {
   correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
   updateSidePanel();
   
-  // Update overall database records (always storing status as "default")
+  // Update DB records (store status as default)
   if (!globalSessionMode && currentList) {
     for (let word of currentList.words) {
       if (word.english === currentWord.english &&
@@ -379,7 +379,7 @@ function checkAnswer() {
     });
   }
   
-  // If all words in session are known, display "Well done!" and record progress.
+  // If all words are known, display message and record progress.
   if (sessionWords.every(word => word.status === "known")) {
     feedbackDiv.textContent += " Well done!";
     recordProgress(sessionWords.length);
@@ -473,9 +473,7 @@ function showWordGraph() {
           backgroundColor: 'rgba(211,47,47,0.7)'
         }]
       },
-      options: {
-        scales: { y: { beginAtZero: true } }
-      }
+      options: { scales: { y: { beginAtZero: true } } }
     });
     graphModal.style.display = "block";
   });
@@ -499,9 +497,7 @@ function showProgressGraph() {
           backgroundColor: 'rgba(56,142,60,0.7)'
         }]
       },
-      options: {
-        scales: { y: { beginAtZero: true } }
-      }
+      options: { scales: { y: { beginAtZero: true } } }
     });
     progressModal.style.display = "block";
   });
@@ -549,7 +545,7 @@ function importDatabase() {
   }
   const file = files[0];
   const reader = new FileReader();
-  reader.readAsText(file, "utf-8");
+  reader.readAsText(file);
   reader.onload = function() {
     try {
       const data = JSON.parse(reader.result);
@@ -561,14 +557,10 @@ function importDatabase() {
       const listsStore = transaction.objectStore("lists");
       const progressStore = transaction.objectStore("progress");
       listsStore.clear().onsuccess = () => {
-        data.lists.forEach(list => {
-          listsStore.add(list);
-        });
+        data.lists.forEach(list => { listsStore.add(list); });
       };
       progressStore.clear().onsuccess = () => {
-        data.progress.forEach(record => {
-          progressStore.add(record);
-        });
+        data.progress.forEach(record => { progressStore.add(record); });
       };
       transaction.oncomplete = () => {
         feedbackDiv.textContent = "Database imported successfully.";
@@ -592,9 +584,7 @@ function importDatabase() {
 function updateOverallWordCount() {
   getAllListsFromDB().then(lists => {
     let count = 0;
-    lists.forEach(list => {
-      count += list.words.length;
-    });
+    lists.forEach(list => { count += list.words.length; });
     document.getElementById("overallWordCount").textContent = "Overall word count: " + count;
   });
 }
@@ -609,10 +599,7 @@ wordGraphButton.addEventListener("click", showWordGraph);
 progressGraphButton.addEventListener("click", showProgressGraph);
 progressTableButton.addEventListener("click", showProgressTable);
 exportDBButton.addEventListener("click", exportDatabase);
-importDBButton.addEventListener("click", () => {
-  // Trigger hidden file input for import
-  importInput.click();
-});
+importDBButton.addEventListener("click", () => { importInput.click(); });
 importInput.addEventListener("change", importDatabase);
 
 leastKnownButton.addEventListener("click", function() {
@@ -646,7 +633,8 @@ uploadFileButton.addEventListener("click", function() {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const reader = new FileReader();
-    reader.readAsText(file, "utf-16le");
+    // Do not specify encoding so that BOM detection can work
+    reader.readAsText(file);
     reader.onload = function() {
       const text = reader.result;
       const wordsArray = parseDCPText(text);
@@ -674,10 +662,7 @@ uploadFileButton.addEventListener("click", function() {
         }
         return;
       }
-      const newList = {
-        name: listName,
-        words: wordsArray
-      };
+      const newList = { name: listName, words: wordsArray };
       addListToDB(newList).then(list => {
         feedbackMessage += `List "${list.name}" added with ${list.words.length} words. `;
         filesProcessed++;
@@ -776,7 +761,5 @@ window.addEventListener("click", function(event) {
 // Initialization
 // -----------------------
 window.addEventListener("load", function() {
-  openDB().then(() => {
-    populateListDropdown();
-  });
+  openDB().then(() => { populateListDropdown(); });
 });

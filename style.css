@@ -25,13 +25,12 @@ h1 {
 /* Dropdowns for management menus */
 details.db-management,
 details.stats-management {
-  text-align: left;
+  text-align: center;
   margin-bottom: 15px;
   border: 1px solid #317EFB;
   border-radius: 4px;
   padding: 5px 10px;
 }
-
 details > summary {
   font-size: 16px;
   font-weight: 500;
@@ -42,7 +41,6 @@ details > summary {
 .controls {
   margin: 10px 0;
 }
-
 label {
   display: block;
   margin-bottom: 5px;
@@ -105,7 +103,7 @@ button:hover {
   color: #fff;
 }
 
-/* Mode Controls (outside dropdown) */
+/* Mode Controls */
 .mode-controls {
   margin-bottom: 15px;
 }
@@ -116,29 +114,24 @@ button:hover {
   flex-direction: column;
   align-items: center;
 }
-
 .flashcard {
   width: 100%;
   margin-bottom: 20px;
 }
-
 .question {
   font-size: 24px;
   margin-bottom: 10px;
   min-height: 40px;
 }
-
 .correct-answer {
   margin-bottom: 10px;
   font-size: 18px;
   font-weight: 500;
   color: #388e3c;
 }
-
 .buttons {
   margin: 10px 0;
 }
-
 .feedback {
   margin-top: 10px;
   font-size: 16px;
