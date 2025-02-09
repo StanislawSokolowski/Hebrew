@@ -19,8 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTestListDropdown();
   addEventListeners();
 
-  // Reset and start test automatically when the test-list dropdown changes.
-  document.getElementById("test-list-select").addEventListener("change", resetTestSession);
+  // When a new list is selected, reset and start the test automatically.
+  const testListSelect = document.getElementById("test-list-select");
+  testListSelect.addEventListener("change", resetTestSession);
+  // (Optional) Also trigger on click so that reselecting the same list resets the session.
+  testListSelect.addEventListener("click", resetTestSession);
 
   // Register service worker if supported.
   if ("serviceWorker" in navigator) {
@@ -123,7 +126,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If the loaded list is the current one, clear old indicators.
+        // If this list is the current one, clear old indicators.
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -300,12 +303,13 @@ function showDatabaseStats() {
 }
 
 // ===== Flashcard Practice Functions =====
-// This function resets all test state and immediately starts a new test using the selected list.
+// This function resets the test state and immediately starts a new test using the selected list.
+// It is triggered when the "test-list-select" dropdown changes (or is clicked).
 function resetTestSession() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
   
-  // Clear previous test state.
+  // Clear previous test state
   currentSession = [];
   currentWordIndex = -1;
   answeredThisWord = false;
@@ -326,19 +330,22 @@ function resetTestSession() {
   
   // Randomize the words for the new session.
   currentSession = shuffle([...wordList]);
+  // Create new indicator squares.
   populateIndicators(currentSession.length);
+  // Update test info.
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
   
-  // Immediately display the first word.
+  // Set session index to 0 and display the first word immediately.
   currentWordIndex = 0;
   answeredThisWord = false;
-  const firstWord = currentSession[currentWordIndex];
+  const firstWord = currentSession[0];
   document.getElementById("question-display").textContent =
     mode === "en-to-he" ? firstWord.english : firstWord.hebrewOptions[0];
+  document.getElementById("answer-input").value = "";
   document.getElementById("answer-input").focus();
 }
 
-// Fisher–Yates shuffle
+// Fisher–Yates shuffle to randomize an array.
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -347,7 +354,7 @@ function shuffle(array) {
   return array;
 }
 
-// Creates indicator squares (one per word in the current session).
+// Creates indicator squares for each word in the current session.
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -390,7 +397,7 @@ function nextWord() {
   document.getElementById("answer-input").focus();
 }
 
-// Checks the answer for the current word and updates its indicator.
+// Checks the answer for the current word and updates its corresponding indicator.
 function checkAnswer() {
   if (currentWordIndex < 0 || currentWordIndex >= currentSession.length) {
     alert("Please click 'Next Word' first.");
