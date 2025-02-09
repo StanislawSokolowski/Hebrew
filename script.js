@@ -36,9 +36,10 @@ function toggleDropdown(button) {
   }
 }
 
-// Hide any open dropdowns if clicking outside a dropdown button.
+// Hide any open dropdowns if clicking outside a dropdown container.
 window.onclick = function(event) {
-  if (!event.target.matches('.dropbtn')) {
+  // If the click target is not inside an element with class "dropdown", close all dropdowns.
+  if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
     for (let i = 0; i < dropdowns.length; i++) {
       dropdowns[i].classList.remove("show");
@@ -104,6 +105,8 @@ function addEventListeners() {
   document.getElementById("load-least-known-btn").addEventListener("click", loadLeastKnown);
   document.getElementById("start-test-btn").addEventListener("click", startTest);
 }
+
+// --- File Loading and Parsing ---
 
 function loadFiles() {
   const fileInput = document.getElementById("file-input");
