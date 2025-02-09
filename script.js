@@ -2,15 +2,15 @@
 
 // Global database object
 let database = {
-  lists: {},       // e.g., { "List1": [ { english, hebrewOptions, stats: { correct, incorrect } }, ... ] }
-  dailyProgress: [] // e.g., [ { date, knownCount, listsCompleted }, ... ]
+  lists: {},       // Example: { "List1": [ { english, hebrewOptions, stats: { correct, incorrect } }, ... ] }
+  dailyProgress: [] // Example: [ { date, knownCount, listsCompleted }, ... ]
 };
 
 // Test session state
 let currentListName = "";
 let currentSession = [];  // Randomized words for the current test session
 let currentWordIndex = -1;
-let mode = "en-to-he";    // Either "en-to-he" or "he-to-en"
+let mode = "en-to-he";    // "en-to-he" or "he-to-en"
 let answeredThisWord = false;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTestListDropdown();
   addEventListeners();
 
-  // When the "Start Test" button is clicked, start/reset the session.
+  // Start test when "Start Test" button is clicked.
   document.getElementById("start-test-btn").addEventListener("click", startTest);
 
   // Register service worker if supported.
@@ -27,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
     navigator.serviceWorker.register("service-worker.js")
       .then(registration => console.log("Service Worker registered with scope:", registration.scope))
       .catch(error => console.error("Service Worker registration failed:", error));
-  }
 });
 
 // ===== Dropdown Toggling =====
@@ -77,14 +76,14 @@ function updateListDropdown() {
 }
 
 function updateTestListDropdown() {
-  const testListSelect = document.getElementById("test-list-select");
-  testListSelect.innerHTML = '<option value="">--Select List--</option>';
+  const testSelect = document.getElementById("test-list-select");
+  testSelect.innerHTML = '<option value="">--Select List--</option>';
   const listNames = Object.keys(database.lists).sort((a, b) => a.localeCompare(b));
   listNames.forEach(listName => {
     const option = document.createElement("option");
     option.value = listName;
     option.textContent = listName;
-    testListSelect.appendChild(option);
+    testSelect.appendChild(option);
   });
 }
 
@@ -123,10 +122,6 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If this list is the current one, clear any old indicators.
-        if (currentListName === listName) {
-          document.getElementById("feedback-indicators").innerHTML = "";
-        }
       }
     };
     reader.readAsText(file);
@@ -300,8 +295,7 @@ function showDatabaseStats() {
 }
 
 // ===== Flashcard Practice Functions =====
-// This function is triggered when the user clicks the "Start Test" button.
-// It resets all test state and immediately starts a new session using the selected list.
+// When "Start Test" is clicked, reset the test state and begin a new session using the selected list.
 function startTest() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
@@ -309,39 +303,30 @@ function startTest() {
     alert("Please select a list to start the test.");
     return;
   }
-  // Reset previous test state completely.
-  currentSession = [];
-  currentWordIndex = -1;
-  answeredThisWord = false;
-  document.getElementById("feedback-indicators").innerHTML = "";
-  document.getElementById("answer-input").value = "";
-  document.getElementById("correct-answer-display").textContent = "";
-  document.getElementById("question-display").textContent = "";
-  document.getElementById("test-info").textContent = "";
-
   currentListName = selectedList;
-  const wordList = database.lists[selectedList] || [];
-  if (wordList.length === 0) {
+  const wordList = database.lists[selectedList];
+  if (!wordList || wordList.length === 0) {
     alert("The selected list is empty.");
     return;
   }
-
-  // Randomize the words and set as the current session.
+  // Reset test state
   currentSession = shuffle([...wordList]);
-  populateIndicators(currentSession.length);
-  document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
-
-  // Set session index to 0 and immediately display the first word.
   currentWordIndex = 0;
   answeredThisWord = false;
+  // Create new indicator squares
+  populateIndicators(currentSession.length);
+  // Update test info display
+  document.getElementById("test-info").textContent = "Words in test: " + currentSession.length;
+  // Display the first word immediately
   const firstWord = currentSession[0];
-  document.getElementById("question-display").textContent =
-    mode === "en-to-he" ? firstWord.english : firstWord.hebrewOptions[0];
+  const displayText = mode === "en-to-he" ? firstWord.english : firstWord.hebrewOptions[0];
+  document.getElementById("question-display").textContent = displayText;
+  // Clear answer input and feedback
   document.getElementById("answer-input").value = "";
+  document.getElementById("correct-answer-display").textContent = "";
   document.getElementById("answer-input").focus();
 }
 
-// Fisher–Yates shuffle to randomize an array.
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -350,7 +335,6 @@ function shuffle(array) {
   return array;
 }
 
-// Creates indicator squares (one per word in the current session).
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -370,7 +354,6 @@ function populateIndicators(count) {
   }
 }
 
-// Advances to the next word in the current session.
 function nextWord() {
   if (currentSession.length === 0) {
     alert("No active test session. Please click 'Start Test' first.");
@@ -388,12 +371,11 @@ function nextWord() {
   const word = currentSession[currentWordIndex];
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
-  document.getElementById("question-display").textContent =
-    mode === "en-to-he" ? word.english : word.hebrewOptions[0];
+  const displayText = mode === "en-to-he" ? word.english : word.hebrewOptions[0];
+  document.getElementById("question-display").textContent = displayText;
   document.getElementById("answer-input").focus();
 }
 
-// Checks the answer for the current word and updates its corresponding indicator.
 function checkAnswer() {
   if (currentWordIndex < 0 || currentWordIndex >= currentSession.length) {
     alert("Please click 'Next Word' first.");
@@ -424,7 +406,6 @@ function checkAnswer() {
   answeredThisWord = true;
 }
 
-// Records daily progress.
 function recordDailyProgress() {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
@@ -440,3 +421,4 @@ function recordDailyProgress() {
   progress.knownCount += sessionCorrect;
   saveDatabase();
 }
+	
