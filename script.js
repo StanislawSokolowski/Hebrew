@@ -9,7 +9,7 @@ let database = {
 let currentListName = ""; // Name of the current list in use
 let currentSession = [];  // Array of word objects for the current test session
 let currentWordIndex = -1;
-let mode = "en-to-he";    // Default mode
+let mode = "en-to-he";    // Default mode ("English to Hebrew")
 let answeredThisWord = false;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -38,7 +38,6 @@ function toggleDropdown(button) {
 
 // Hide any open dropdowns if clicking outside a dropdown container.
 window.onclick = function(event) {
-  // If the click target is not inside an element with class "dropdown", close all dropdowns.
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
     for (let i = 0; i < dropdowns.length; i++) {
@@ -127,6 +126,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
+        // If this list is currently active, reset the indicators
         if (currentListName === listName) {
           populateIndicators(0);
         }
@@ -305,6 +305,9 @@ function showDatabaseStats() {
 
 // --- Flashcard Practice Functions ---
 
+// When a new test is started, this function initializes the session by shuffling the words from the chosen list,
+// resetting the current word index, and creating a set of indicator squares.
+// Each indicator square is labeled with its position in the randomized session.
 function initializeSession(wordsArray) {
   currentSession = shuffle([...wordsArray]);
   currentWordIndex = -1;
@@ -314,6 +317,7 @@ function initializeSession(wordsArray) {
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
 }
 
+// Fisher-Yates shuffle to randomize the words
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -322,16 +326,28 @@ function shuffle(array) {
   return array;
 }
 
+// Create indicator squares based on the number of words in the randomized session.
+// Each square is labeled with its order (1, 2, 3, …) to help map the random order.
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
   for (let i = 0; i < count; i++) {
     const square = document.createElement("div");
     square.style.backgroundColor = "#fff";
+    square.style.width = "20px";
+    square.style.height = "20px";
+    square.style.margin = "3px";
+    square.style.borderRadius = "4px";
+    square.style.textAlign = "center";
+    square.style.lineHeight = "20px";
+    square.style.fontSize = "0.8rem";
+    square.style.color = "#000";
+    square.textContent = i + 1;
     indicatorsDiv.appendChild(square);
   }
 }
 
+// When "Next Word" is clicked, show the next word from the randomized session.
 function nextWord() {
   if (!currentSession.length) {
     const testListSelect = document.getElementById("test-list-select");
@@ -356,15 +372,16 @@ function nextWord() {
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
   const questionDisplay = document.getElementById("question-display");
-  questionDisplay.textContent = mode === "en-to-he" ? word.english : word.hebrewOptions[0];
+  questionDisplay.textContent = (mode === "en-to-he") ? word.english : word.hebrewOptions[0];
 }
 
+// When "Check" is clicked, verify the answer and update the corresponding indicator square.
 function checkAnswer() {
   if (currentWordIndex < 0 || currentWordIndex >= currentSession.length) {
     alert("Please press 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return;
+  if (answeredThisWord) return; // Prevent double-checking
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
@@ -374,7 +391,7 @@ function checkAnswer() {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
   document.getElementById("correct-answer-display").textContent =
-    mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
+    (mode === "en-to-he") ? word.hebrewOptions[0] : word.english;
   if (isCorrect) {
     word.stats.correct++;
   } else {
@@ -389,6 +406,7 @@ function checkAnswer() {
   answeredThisWord = true;
 }
 
+// Record daily progress (number of words answered correctly in this session)
 function recordDailyProgress() {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
@@ -405,6 +423,8 @@ function recordDailyProgress() {
   saveDatabase();
 }
 
+// Start a new test by selecting a list from the test selection dropdown.
+// This resets the session and creates new indicator squares based on the new randomized order.
 function startTest() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
