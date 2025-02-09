@@ -141,17 +141,6 @@ function getAllProgressRecords() {
   });
 }
 
-// Clear a given object store.
-function clearStore(storeName) {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([storeName], "readwrite");
-    const store = transaction.objectStore(storeName);
-    const request = store.clear();
-    request.onsuccess = e => resolve();
-    request.onerror = e => reject(e);
-  });
-}
-
 // -----------------------
 // Utility Functions
 // -----------------------
@@ -196,27 +185,24 @@ function parseDCPText(text) {
 // -----------------------
 // Global Variables & UI Elements
 // -----------------------
-let currentList = null;
-let sessionWords = [];
+let currentList = null; // Loaded list object
+let sessionWords = [];  // Deep copies for current session
 let currentWordIndex = -1;
 let globalSessionMode = false;
-let progressRecorded = false;
+let progressRecorded = false; // To record progress once per session
 
 const fileInput = document.getElementById("fileInput");
 const uploadFileButton = document.getElementById("uploadFileButton");
 const dbListSelect = document.getElementById("dbListSelect");
 const loadListButton = document.getElementById("loadListButton");
 const deleteListButton = document.getElementById("deleteListButton");
-const exportDBButton = document.getElementById("exportDBButton");
-const importDBButton = document.getElementById("importDBButton");
-const importDBInput = document.getElementById("importDBInput");
 const leastKnownButton = document.getElementById("leastKnownButton");
 const statsButton = document.getElementById("statsButton");
 const wordGraphButton = document.getElementById("wordGraphButton");
 const progressGraphButton = document.getElementById("progressGraphButton");
 const progressTableButton = document.getElementById("progressTableButton");
-
-const overallWordCountEl = document.getElementById("overallWordCount");
+const exportDBButton = document.getElementById("exportDBButton");
+const importDBButton = document.getElementById("importDBButton");
 
 const questionDiv = document.getElementById("question");
 const correctAnswerDiv = document.getElementById("correctAnswer");
@@ -241,6 +227,8 @@ const progressGraphCanvas = document.getElementById("progressGraphCanvas");
 const progressTableModal = document.getElementById("progressTableModal");
 const closeProgressTableModal = document.getElementById("closeProgressTableModal");
 const progressTableBody = document.querySelector("#progressTable tbody");
+
+const importInput = document.getElementById("importInput");
 
 // -----------------------
 // Helper Function: Shuffle (Fisher-Yates)
@@ -358,7 +346,7 @@ function checkAnswer() {
   correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
   updateSidePanel();
   
-  // Update database record (store status always as "default")
+  // Update overall DB records (store status as "default")
   if (!globalSessionMode && currentList) {
     for (let word of currentList.words) {
       if (word.english === currentWord.english &&
@@ -393,7 +381,7 @@ function checkAnswer() {
     });
   }
   
-  // If all words are known, show "Well done!" and record progress.
+  // If all words in session are known, display "Well done!" and record progress.
   if (sessionWords.every(word => word.status === "known")) {
     feedbackDiv.textContent += " Well done!";
     recordProgress(sessionWords.length);
@@ -421,7 +409,85 @@ function recordProgress(wordsLearned) {
 }
 
 // -----------------------
-// Statistics & Graph Functions
+// Database Export/Import Functions
+// -----------------------
+function exportDatabase() {
+  Promise.all([getAllListsFromDB(), getAllProgressRecords()])
+    .then(([lists, progress]) => {
+      const data = { lists, progress };
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "hebrew_database_export_" + new Date().toISOString().split('T')[0] + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })
+    .catch(err => console.error(err));
+}
+
+function importDatabase(file) {
+  const reader = new FileReader();
+  reader.readAsText(file, "utf-8");
+  reader.onload = function() {
+    try {
+      const data = JSON.parse(reader.result);
+      // Data must contain "lists" and "progress"
+      if (!data.lists || !data.progress) {
+        feedbackDiv.textContent = "Invalid database file.";
+        return;
+      }
+      // For simplicity, clear current lists store and progress store
+      const transaction = db.transaction(["lists", "progress"], "readwrite");
+      const listsStore = transaction.objectStore("lists");
+      const progressStore = transaction.objectStore("progress");
+      
+      // Clear stores and then add new items.
+      listsStore.clear().onsuccess = () => {
+        data.lists.forEach(list => {
+          listsStore.add(list);
+        });
+      };
+      progressStore.clear().onsuccess = () => {
+        data.progress.forEach(record => {
+          progressStore.add(record);
+        });
+      };
+      
+      transaction.oncomplete = () => {
+        feedbackDiv.textContent = "Database imported successfully.";
+        populateListDropdown();
+      };
+      transaction.onerror = (e) => {
+        feedbackDiv.textContent = "Error importing database.";
+      };
+    } catch (err) {
+      feedbackDiv.textContent = "Error parsing JSON.";
+    }
+  };
+  reader.onerror = function() {
+    feedbackDiv.textContent = "Error reading import file.";
+  };
+}
+
+// -----------------------
+// Overall Word Count Calculation
+// -----------------------
+function updateOverallWordCount() {
+  getAllListsFromDB().then(lists => {
+    let count = 0;
+    lists.forEach(list => {
+      count += list.words.length;
+    });
+    document.getElementById("overallWordCount").textContent = "Overall word count: " + count;
+  });
+}
+
+// -----------------------
+// Word Statistics Modal
 // -----------------------
 function displayStatistics() {
   getAllListsFromDB().then(lists => {
@@ -437,3 +503,349 @@ function displayStatistics() {
       const ratio = total > 0 ? (word.incorrectCount / total).toFixed(2) : "0.00";
       const row = document.createElement("tr");
       row.innerHTML = `<td>${word.english}</td><td>${word.correctCount}</td><td>${word.incorrectCount}</td><td>${ratio}</td>`;
+      statsTableBody.appendChild(row);
+    });
+    statsModal.style.display = "block";
+  });
+}
+
+// -----------------------
+// Graph Functions using Chart.js
+// -----------------------
+let wordChart;
+function showWordGraph() {
+  getAllListsFromDB().then(lists => {
+    let allWords = [];
+    lists.forEach(list => {
+      list.words.forEach(word => {
+        const total = word.correctCount + word.incorrectCount;
+        const ratio = total > 0 ? (word.incorrectCount / total) : 0;
+        allWords.push(ratio);
+      });
+    });
+    // Create histogram bins (10 bins: 0-0.1, 0.1-0.2, …, 0.9-1.0)
+    const bins = new Array(10).fill(0);
+    allWords.forEach(ratio => {
+      let index = Math.floor(ratio * 10);
+      if (index >= 10) index = 9;
+      bins[index]++;
+    });
+    const labels = ["0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"];
+    const ctx = wordGraphCanvas.getContext("2d");
+    if (wordChart) wordChart.destroy();
+    wordChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Number of Words',
+          data: bins,
+          backgroundColor: 'rgba(211,47,47,0.7)'
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+    graphModal.style.display = "block";
+  });
+}
+
+let progressChart;
+function showProgressGraph() {
+  getAllProgressRecords().then(records => {
+    records.sort((a, b) => a.date.localeCompare(b.date));
+    const labels = records.map(r => r.date);
+    const data = records.map(r => r.wordsLearned);
+    const ctx = progressGraphCanvas.getContext("2d");
+    if (progressChart) progressChart.destroy();
+    progressChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Words Learned',
+          data: data,
+          backgroundColor: 'rgba(56,142,60,0.7)'
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+    progressModal.style.display = "block";
+  });
+}
+
+function showProgressTable() {
+  getAllProgressRecords().then(records => {
+    records.sort((a, b) => a.date.localeCompare(b.date));
+    progressTableBody.innerHTML = "";
+    records.forEach(record => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${record.date}</td><td>${record.wordsLearned}</td><td>${record.testsDone}</td>`;
+      progressTableBody.appendChild(row);
+    });
+    progressTableModal.style.display = "block";
+  });
+}
+
+// -----------------------
+// Event Listeners for Buttons and Modals
+// -----------------------
+checkButton.addEventListener("click", checkAnswer);
+nextButton.addEventListener("click", nextWord);
+statsButton.addEventListener("click", function() {
+  displayStatistics();
+  updateOverallWordCount();
+});
+wordGraphButton.addEventListener("click", showWordGraph);
+progressGraphButton.addEventListener("click", showProgressGraph);
+progressTableButton.addEventListener("click", showProgressTable);
+
+leastKnownButton.addEventListener("click", function() {
+  getAllListsFromDB().then(lists => {
+    let aggregatedWords = [];
+    lists.forEach(list => {
+      list.words.forEach(word => {
+        const total = word.correctCount + word.incorrectCount;
+        const metric = total > 0 ? (word.incorrectCount / total) : 0;
+        const wordClone = Object.assign({}, word);
+        wordClone.parentListId = list.id;
+        wordClone.metric = metric;
+        aggregatedWords.push(wordClone);
+      });
+    });
+    aggregatedWords.sort((a, b) => b.metric - a.metric);
+    const leastKnown = aggregatedWords.slice(0, 20);
+    startSession(leastKnown, true);
+    updateSidePanel();
+  });
+});
+
+// -----------------------
+// Export / Import Database
+// -----------------------
+function exportDatabase() {
+  Promise.all([getAllListsFromDB(), getAllProgressRecords()])
+    .then(([lists, progress]) => {
+      const data = { lists, progress };
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "hebrew_database_export_" + new Date().toISOString().split('T')[0] + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })
+    .catch(err => console.error(err));
+}
+
+function importDatabase() {
+  const files = importInput.files;
+  if (!files || files.length === 0) {
+    feedbackDiv.textContent = "Please select a JSON file to import.";
+    return;
+  }
+  const file = files[0];
+  const reader = new FileReader();
+  reader.readAsText(file, "utf-8");
+  reader.onload = function() {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.lists || !data.progress) {
+        feedbackDiv.textContent = "Invalid database file.";
+        return;
+      }
+      // Clear existing stores and import new data.
+      const transaction = db.transaction(["lists", "progress"], "readwrite");
+      const listsStore = transaction.objectStore("lists");
+      const progressStore = transaction.objectStore("progress");
+      listsStore.clear().onsuccess = () => {
+        data.lists.forEach(list => {
+          listsStore.add(list);
+        });
+      };
+      progressStore.clear().onsuccess = () => {
+        data.progress.forEach(record => {
+          progressStore.add(record);
+        });
+      };
+      transaction.oncomplete = () => {
+        feedbackDiv.textContent = "Database imported successfully.";
+        populateListDropdown();
+      };
+      transaction.onerror = () => {
+        feedbackDiv.textContent = "Error importing database.";
+      };
+    } catch (err) {
+      feedbackDiv.textContent = "Error parsing JSON.";
+    }
+  };
+  reader.onerror = function() {
+    feedbackDiv.textContent = "Error reading import file.";
+  };
+}
+
+// -----------------------
+// File Upload (Multiple Files with Default Name Suggestion)
+// -----------------------
+uploadFileButton.addEventListener("click", function() {
+  const files = fileInput.files;
+  if (!files || files.length === 0) {
+    feedbackDiv.textContent = "Please select at least one file first.";
+    return;
+  }
+  let filesProcessed = 0;
+  let feedbackMessage = "";
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const reader = new FileReader();
+    reader.readAsText(file, "utf-16le");
+    reader.onload = function() {
+      const text = reader.result;
+      const wordsArray = parseDCPText(text);
+      if (wordsArray.length === 0) {
+        feedbackMessage += `No words found in file ${file.name}. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+        return;
+      }
+      let defaultName = file.name;
+      defaultName = defaultName.replace(/^HtE/i, '');
+      if (defaultName.toLowerCase().endsWith(".dcp")) {
+        defaultName = defaultName.slice(0, -4);
+      }
+      const listName = prompt(`Enter a name for this list:`, defaultName);
+      if (!listName) {
+        feedbackMessage += `List name is required for file ${file.name}. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+        return;
+      }
+      const newList = {
+        name: listName,
+        words: wordsArray
+      };
+      addListToDB(newList).then(list => {
+        feedbackMessage += `List "${list.name}" added with ${list.words.length} words. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+      }).catch(err => {
+        feedbackMessage += `Error adding file ${file.name} to DB. `;
+        filesProcessed++;
+        if (filesProcessed === files.length) {
+          feedbackDiv.textContent = feedbackMessage;
+          populateListDropdown();
+        }
+      });
+    };
+    reader.onerror = function() {
+      feedbackMessage += `Error reading file ${file.name}. `;
+      filesProcessed++;
+      if (filesProcessed === files.length) {
+        feedbackDiv.textContent = feedbackMessage;
+        populateListDropdown();
+      }
+    };
+  }
+});
+
+// -----------------------
+// Load, Delete, and Import/Export DB Button Listeners
+// -----------------------
+loadListButton.addEventListener("click", function() {
+  const selectedId = dbListSelect.value;
+  if (!selectedId) {
+    feedbackDiv.textContent = "Please select a list.";
+    return;
+  }
+  getListFromDB(selectedId).then(list => {
+    if (list) {
+      currentList = list;
+      startSession(currentList.words, false);
+      globalSessionMode = false;
+      updateSidePanel();
+      feedbackDiv.textContent = `Loaded list "${currentList.name}" with ${currentList.words.length} words.`;
+    }
+  });
+});
+
+deleteListButton.addEventListener("click", function() {
+  const selectedId = dbListSelect.value;
+  if (!selectedId) {
+    feedbackDiv.textContent = "Please select a list to delete.";
+    return;
+  }
+  if (confirm("Are you sure you want to delete this list? This action cannot be undone.")) {
+    deleteListFromDB(selectedId).then(() => {
+      feedbackDiv.textContent = "List deleted.";
+      populateListDropdown();
+      if (currentList && currentList.id == selectedId) {
+        currentList = null;
+        sessionWords = [];
+        questionDiv.textContent = "No list loaded.";
+        sidePanel.innerHTML = "";
+      }
+    });
+  }
+});
+
+exportDBButton.addEventListener("click", exportDatabase);
+
+importDBButton.addEventListener("click", function() {
+  importDatabase();
+});
+
+// -----------------------
+// Populate List Dropdown (Sorted Alphabetically)
+// -----------------------
+function populateListDropdown() {
+  getAllListsFromDB().then(lists => {
+    lists.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    dbListSelect.innerHTML = "";
+    lists.forEach(list => {
+      const option = document.createElement("option");
+      option.value = list.id;
+      option.textContent = list.name;
+      dbListSelect.appendChild(option);
+    });
+  });
+}
+
+// -----------------------
+// Modal Close Event Listeners
+// -----------------------
+closeStatsModal.addEventListener("click", () => { statsModal.style.display = "none"; });
+closeGraphModal.addEventListener("click", () => { graphModal.style.display = "none"; });
+closeProgressModal.addEventListener("click", () => { progressModal.style.display = "none"; });
+closeProgressTableModal.addEventListener("click", () => { progressTableModal.style.display = "none"; });
+window.addEventListener("click", function(event) {
+  if (event.target === statsModal) statsModal.style.display = "none";
+  if (event.target === graphModal) graphModal.style.display = "none";
+  if (event.target === progressModal) progressModal.style.display = "none";
+  if (event.target === progressTableModal) progressTableModal.style.display = "none";
+});
+
+// -----------------------
+// Initialization
+// -----------------------
+window.addEventListener("load", function() {
+  openDB().then(() => {
+    populateListDropdown();
+  });
+});
