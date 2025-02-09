@@ -23,7 +23,9 @@
         <button class="dropbtn">Manage Database</button>
         <div class="dropdown-content">
           <div>
-            <input type="file" id="file-input" multiple accept=".dcp" />
+            <!-- Styled file input for .dcp files -->
+            <label for="file-input" class="file-input-button">Choose Files</label>
+            <input type="file" id="file-input" multiple accept=".dcp" hidden />
             <button id="load-files-btn">Load Selected Files</button>
           </div>
           <hr />
@@ -37,7 +39,9 @@
           <hr />
           <div>
             <button id="export-db-btn">Export Database</button>
-            <input type="file" id="import-db-input" accept=".json" />
+            <!-- Styled file input for JSON import -->
+            <label for="import-db-input" class="file-input-button">Choose Import File</label>
+            <input type="file" id="import-db-input" accept=".json" hidden />
             <button id="import-db-btn">Import Database</button>
           </div>
         </div>
@@ -52,7 +56,7 @@
         <div class="dropdown-content">
           <button id="show-db-stats-btn">Show Database Stats</button>
           <button id="show-list-stats-btn">Show List Statistics</button>
-          <button id="show-histogram-btn">Show Ratio Histogram (20 bins)</button>
+          <button id="show-histogram-btn">Show Ratio Histogram</button>
           <button id="show-daily-progress-graph-btn">Show Daily Progress Graph</button>
           <button id="show-daily-progress-table-btn">Show Daily Progress Table</button>
         </div>
@@ -80,6 +84,7 @@
           <button id="check-answer-btn">Check</button>
           <button id="next-word-btn">Next Word</button>
         </div>
+        <!-- Feedback indicators (populated when a session is initialized) -->
         <div id="feedback-indicators" class="indicators"></div>
       </div>
       <!-- Display the number of words in the test -->

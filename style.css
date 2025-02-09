@@ -100,6 +100,22 @@ button:hover {
   color: #000;
 }
 
+/* File input button styling */
+.file-input-button {
+  display: inline-block;
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 0.5rem;
+}
+
+.file-input-button:hover {
+  background-color: var(--accent-color);
+  color: #000;
+}
+
 /* Flashcard area */
 #flashcard {
   margin-top: 1rem;
@@ -140,10 +156,36 @@ button:hover {
   background-color: #fff;
 }
 
+/* Histogram styling */
+.histogram-container {
+  display: flex;
+  align-items: flex-end;
+  height: 200px;
+  margin: 1rem auto;
+  width: 90%;
+  max-width: 600px;
+}
+.histogram-bar {
+  flex: 1;
+  margin: 0 2px;
+  background-color: var(--accent-color);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  color: #000;
+}
+.histogram-bar span {
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  font-size: 0.7rem;
+  padding: 2px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .dropbtn,
-  button {
+  button,
+  .file-input-button {
     width: 90%;
     font-size: 1.1rem;
   }

@@ -48,16 +48,17 @@ function saveDatabase() {
   localStorage.setItem("hebrewDatabase", JSON.stringify(database));
 }
 
-// Update the dropdown list of loaded lists
+// Update the dropdown list of loaded lists (ordered alphabetically)
 function updateListDropdown() {
   const listSelect = document.getElementById("list-select");
   listSelect.innerHTML = '<option value="">--Select List--</option>';
-  for (let listName in database.lists) {
+  const listNames = Object.keys(database.lists).sort((a, b) => a.localeCompare(b));
+  listNames.forEach(listName => {
     const option = document.createElement("option");
     option.value = listName;
     option.textContent = listName;
     listSelect.appendChild(option);
-  }
+  });
 }
 
 // Add event listeners to all buttons and inputs
@@ -97,6 +98,17 @@ function addEventListeners() {
       }
     });
   });
+
+  // For file input label clicks to trigger file selectors
+  const fileInputButton = document.querySelector('label[for="file-input"]');
+  fileInputButton.addEventListener("click", function() {
+    document.getElementById("file-input").click();
+  });
+  
+  const importFileInputButton = document.querySelector('label[for="import-db-input"]');
+  importFileInputButton.addEventListener("click", function() {
+    document.getElementById("import-db-input").click();
+  });
 }
 
 // --- File Loading and Parsing ---
@@ -120,19 +132,24 @@ function loadFiles() {
         database.lists[listName] = words;
         updateListDropdown();
         saveDatabase();
+        // If this list is active, clear the indicators
+        if (currentListName === listName) {
+          populateIndicators(0);
+        }
       }
     };
     reader.readAsText(file);
   });
 }
 
-// Parse a .dcp file (each line: english=hebrew1|hebrew2, "@" denotes end-of-file)
+// Parse a .dcp file (each line: english=hebrew1|hebrew2)
+// Ignores lines that are empty, begin with "HtE" or "@" (end marker)
 function parseDCPFile(content) {
   const lines = content.split(/\r?\n/);
   const words = [];
   for (let line of lines) {
     line = line.trim();
-    if (!line || line.startsWith("@")) continue;
+    if (!line || line.startsWith("@") || line.startsWith("HtE")) continue;
     const parts = line.split("=");
     if (parts.length < 2) continue;
     const english = parts[0].trim();
@@ -195,7 +212,7 @@ function importDatabase() {
 
 // --- Statistics Functions ---
 
-// Show per–word statistics for the selected list
+// Show per-word statistics for the selected list
 function showListStats() {
   const listSelect = document.getElementById("list-select");
   const listName = listSelect.value;
@@ -223,7 +240,7 @@ function showListStats() {
   statsDisplay.innerHTML = html;
 }
 
-// Show a 20–bin histogram of correct ratios (across all words)
+// Show a 20-bin histogram of correct ratios (actual graph)
 function showHistogram() {
   const statsDisplay = document.getElementById("stats-display");
   const allWords = [];
@@ -238,21 +255,22 @@ function showHistogram() {
   allWords.forEach((word) => {
     const attempts = word.stats.correct + word.stats.incorrect;
     const ratio = attempts ? word.stats.correct / attempts : 0;
-    // Determine bin index (0–19)
     let index = Math.floor(ratio * 20);
     if (index === 20) index = 19;
     bins[index]++;
   });
+  const maxCount = Math.max(...bins);
   let html = "<h3>Histogram of Correct Ratios (20 bins)</h3>";
+  html += '<div class="histogram-container">';
   bins.forEach((count, i) => {
-    const binStart = (i / 20).toFixed(2);
-    const binEnd = ((i + 1) / 20).toFixed(2);
-    html += `<div style="margin:2px;">${binStart}–${binEnd}: ${"*".repeat(count)}</div>`;
+    const barHeight = maxCount > 0 ? (count / maxCount * 100) : 0;
+    html += `<div class="histogram-bar" style="height: ${barHeight}%;"><span>${count}</span></div>`;
   });
+  html += "</div>";
   statsDisplay.innerHTML = html;
 }
 
-// Show a daily progress graph (simple text–based graph for this example)
+// Show a daily progress graph (simple text-based graph)
 function showDailyProgressGraph() {
   const statsDisplay = document.getElementById("stats-display");
   if (!database.dailyProgress.length) {
@@ -313,7 +331,7 @@ function initializeSession(wordsArray) {
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
 }
 
-// Fisher–Yates Shuffle
+// Fisher-Yates Shuffle
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -376,7 +394,7 @@ function checkAnswer() {
     alert("Please press 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return; // prevent double–checking
+  if (answeredThisWord) return; // prevent double-checking
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
@@ -407,7 +425,7 @@ function checkAnswer() {
   answeredThisWord = true;
 }
 
-// Record daily progress (this example simply records the number of words answered correctly)
+// Record daily progress (this example records the number of words answered correctly)
 function recordDailyProgress() {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
@@ -419,7 +437,7 @@ function recordDailyProgress() {
     progress = { date: dateStr, knownCount: 0, listsCompleted: 0 };
     database.dailyProgress.push(progress);
   }
-  // For simplicity, we count all words answered in this session as “known”
+  // For simplicity, count all words answered in this session as “known”
   const sessionCorrect = currentSession.filter(
     (word) => word.stats.correct > 0
   ).length;
