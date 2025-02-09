@@ -10,7 +10,7 @@ let database = {
 
 // Test session state
 let currentListName = "";
-let currentSession = [];  // Array holding the randomized words for the current test
+let currentSession = [];  // Randomized words for the current test
 let currentWordIndex = -1;
 let mode = "en-to-he";    // "en-to-he" or "he-to-en"
 let answeredThisWord = false;
@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateListDropdown();
   updateTestListDropdown();
   addEventListeners();
+
   // Register service worker if supported
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js")
@@ -27,7 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch(error => console.error("Service Worker registration failed:", error));
   }
 });
-
 
 // ===== Dropdown Toggling =====
 
@@ -38,7 +38,7 @@ function toggleDropdown(button) {
   }
 }
 
-// Only close dropdowns if the click is outside any dropdown container.
+// Close dropdowns if click is outside any dropdown container.
 window.onclick = function (event) {
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -47,7 +47,6 @@ window.onclick = function (event) {
     }
   }
 };
-
 
 // ===== Database Functions =====
 
@@ -108,7 +107,6 @@ function addEventListeners() {
   document.getElementById("start-test-btn").addEventListener("click", startTest);
 }
 
-
 // ===== File Loading and Parsing =====
 
 function loadFiles() {
@@ -122,7 +120,7 @@ function loadFiles() {
     const reader = new FileReader();
     reader.onload = event => {
       const content = event.target.result;
-      // Use the file name (without extension) as the list name
+      // Use file name (without extension) as list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
       const words = parseDCPFile(content);
       if (words.length) {
@@ -130,7 +128,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // Optionally clear indicators if the loaded list is active
+        // Optionally clear indicators if the loaded list is currently active
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -204,7 +202,6 @@ function importDatabase() {
   };
   reader.readAsText(file);
 }
-
 
 // ===== Statistics Functions =====
 
@@ -308,21 +305,21 @@ function showDatabaseStats() {
   statsDisplay.innerHTML = html;
 }
 
-
 // ===== Flashcard Practice Functions =====
 
 // Resets the session state and creates fresh indicators based on the new test’s word count.
+// Immediately calls nextWord() to display the first word.
 function initializeSession(wordsArray) {
-  currentSession = shuffle([...wordsArray]); // Randomize order
+  currentSession = shuffle([...wordsArray]); // Randomize the word order
   currentWordIndex = -1;
   answeredThisWord = false;
-  // Clear any previous answer, feedback, or indicators
+  // Clear previous input, feedback, and indicators
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
   populateIndicators(currentSession.length);
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
-  // Set the prompt (do not show any word until "Next Word" is clicked)
-  document.getElementById("question-display").textContent = "Press 'Next Word' to begin";
+  // Automatically show the first word
+  nextWord();
 }
 
 // Fisher–Yates shuffle to randomize the array
@@ -334,7 +331,7 @@ function shuffle(array) {
   return array;
 }
 
-// Creates indicator squares for each word in the current randomized session.
+// Creates indicator squares for each word in the randomized session.
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -349,7 +346,7 @@ function populateIndicators(count) {
     square.style.lineHeight = "20px";
     square.style.fontSize = "0.8rem";
     square.style.color = "#000";
-    square.textContent = i + 1; // Label with order in the session
+    square.textContent = i + 1; // Label with session order
     indicatorsDiv.appendChild(square);
   }
 }
@@ -364,7 +361,7 @@ function nextWord() {
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
     recordDailyProgress();
-    // Clear the session state (new test will be needed)
+    // Clear session state so that a new test can be started
     currentSession = [];
     currentWordIndex = -1;
     return;
@@ -374,8 +371,8 @@ function nextWord() {
   // Clear previous input and feedback
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
-  // Display the next word prompt based on the selected mode
-  document.getElementById("question-display").textContent = 
+  // Display the current word according to the selected mode
+  document.getElementById("question-display").textContent =
     mode === "en-to-he" ? word.english : word.hebrewOptions[0];
 }
 
@@ -385,7 +382,7 @@ function checkAnswer() {
     alert("Please click 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return; // Avoid double-checking
+  if (answeredThisWord) return; // Prevent double-checking
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
@@ -395,16 +392,14 @@ function checkAnswer() {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
   // Always display the correct answer
-  document.getElementById("correct-answer-display").textContent = 
+  document.getElementById("correct-answer-display").textContent =
     mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
-  // Update stats
   if (isCorrect) {
     word.stats.correct++;
   } else {
     word.stats.incorrect++;
   }
   saveDatabase();
-  // Update the corresponding indicator square (by session order)
   const indicatorsDiv = document.getElementById("feedback-indicators");
   if (indicatorsDiv.children[currentWordIndex]) {
     indicatorsDiv.children[currentWordIndex].style.backgroundColor =
@@ -431,7 +426,7 @@ function recordDailyProgress() {
 }
 
 // Starts a new test session based on the selected list from the test selection dropdown.
-// It resets all test state and creates a fresh randomized session and indicators.
+// This function completely resets all test state and then calls initializeSession to begin the test.
 function startTest() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
@@ -439,14 +434,14 @@ function startTest() {
     alert("Please select a list to start the test.");
     return;
   }
-  // Reset any previous session state completely
+  // Reset previous session state completely
   currentSession = [];
   currentWordIndex = -1;
   answeredThisWord = false;
   document.getElementById("feedback-indicators").innerHTML = "";
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
-  // Set current list and initialize new session
+  // Set current list and initialize a new session
   currentListName = selectedList;
   const wordList = database.lists[selectedList] || [];
   if (wordList.length === 0) {
