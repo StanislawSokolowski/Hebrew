@@ -70,12 +70,33 @@ function addEventListeners() {
   document.getElementById("show-histogram-btn").addEventListener("click", showHistogram);
   document.getElementById("show-daily-progress-graph-btn").addEventListener("click", showDailyProgressGraph);
   document.getElementById("show-daily-progress-table-btn").addEventListener("click", showDailyProgressTable);
+  document.getElementById("show-db-stats-btn").addEventListener("click", showDatabaseStats);
   document.getElementById("mode-select").addEventListener("change", (e) => {
     mode = e.target.value;
   });
   document.getElementById("check-answer-btn").addEventListener("click", checkAnswer);
   document.getElementById("next-word-btn").addEventListener("click", nextWord);
   document.getElementById("load-least-known-btn").addEventListener("click", loadLeastKnown);
+
+  // Dropdown toggle on click
+  const dropdowns = document.querySelectorAll('.dropdown');
+  dropdowns.forEach(dropdown => {
+    const button = dropdown.querySelector('.dropbtn');
+    button.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // Toggle active class for this dropdown
+      dropdown.classList.toggle('active');
+    });
+  });
+
+  // Close dropdowns if clicking outside
+  document.addEventListener('click', function(e) {
+    dropdowns.forEach(dropdown => {
+      if (!dropdown.contains(e.target)) {
+        dropdown.classList.remove('active');
+      }
+    });
+  });
 }
 
 // --- File Loading and Parsing ---
@@ -266,28 +287,68 @@ function showDailyProgressTable() {
   statsDisplay.innerHTML = html;
 }
 
+// Show database statistics (total words count)
+function showDatabaseStats() {
+  const statsDisplay = document.getElementById("stats-display");
+  let totalWords = 0;
+  for (let list in database.lists) {
+    totalWords += database.lists[list].length;
+  }
+  let html = `<h3>Database Statistics</h3>`;
+  html += `<p>Total words in database: ${totalWords}</p>`;
+  statsDisplay.innerHTML = html;
+}
+
 // --- Flashcard Practice Functions ---
+
+// Initialize session: randomize words, reset index, pre-populate indicators, update test info.
+function initializeSession(wordsArray) {
+  currentSession = shuffle([...wordsArray]);
+  currentWordIndex = -1;
+  answeredThisWord = false;
+  // Clear previous feedback
+  document.getElementById("correct-answer-display").textContent = "";
+  populateIndicators(currentSession.length);
+  // Update test info display
+  document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
+}
+
+// Fisher–Yates Shuffle
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Pre-populate the feedback indicators with default white squares
+function populateIndicators(count) {
+  const indicatorsDiv = document.getElementById("feedback-indicators");
+  indicatorsDiv.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const square = document.createElement("div");
+    square.style.backgroundColor = "#fff"; // default white
+    indicatorsDiv.appendChild(square);
+  }
+}
 
 // When "Next Word" is clicked
 function nextWord() {
-  const listSelect = document.getElementById("list-select");
-  // If no list is chosen (and not using least–known), then ask user to select one.
-  if (!currentSession.length && listSelect.value) {
-    currentListName = listSelect.value;
-    // Clone the list words into the current session (you could randomize/shuffle here)
-    currentSession = [...database.lists[currentListName]];
-    currentWordIndex = -1;
-    // Clear any old feedback
-    document.getElementById("correct-answer-display").textContent = "";
-    document.getElementById("feedback-indicators").innerHTML = "";
-  } else if (!currentSession.length) {
-    alert("Please select a list (or load the 20 least known words) first.");
-    return;
+  // If no session is active, initialize session from selected list
+  if (!currentSession.length) {
+    const listSelect = document.getElementById("list-select");
+    if (listSelect.value) {
+      currentListName = listSelect.value;
+      initializeSession(database.lists[currentListName]);
+    } else {
+      alert("Please select a list (or load the 20 least known words) first.");
+      return;
+    }
   }
   currentWordIndex++;
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
-    // (Optional) Record daily progress here.
     recordDailyProgress();
     // Reset session
     currentSession = [];
@@ -338,10 +399,11 @@ function checkAnswer() {
     word.stats.incorrect++;
   }
   saveDatabase();
-  // Update the indicator squares
-  const indicator = document.createElement("div");
-  indicator.style.backgroundColor = isCorrect ? "var(--success-color)" : "var(--error-color)";
-  document.getElementById("feedback-indicators").appendChild(indicator);
+  // Update the corresponding indicator square
+  const indicatorsDiv = document.getElementById("feedback-indicators");
+  if (indicatorsDiv.children[currentWordIndex]) {
+    indicatorsDiv.children[currentWordIndex].style.backgroundColor = isCorrect ? "var(--success-color)" : "var(--error-color)";
+  }
   answeredThisWord = true;
 }
 
@@ -362,7 +424,6 @@ function recordDailyProgress() {
     (word) => word.stats.correct > 0
   ).length;
   progress.knownCount += sessionCorrect;
-  // (Optionally) you can also count fully–completed lists here.
   saveDatabase();
 }
 
@@ -383,11 +444,9 @@ function loadLeastKnown() {
   // Sort words by ratio ascending (least known first)
   allWords.sort((a, b) => a.ratio - b.ratio);
   // Take the 20 least known words
-  currentSession = allWords.slice(0, 20);
-  currentWordIndex = -1;
   currentListName = "20 Least Known Words";
+  initializeSession(allWords.slice(0, 20));
   alert("20 least known words loaded. Click 'Next Word' to begin.");
-  // Clear previous session feedback
-  document.getElementById("feedback-indicators").innerHTML = "";
+  // Clear previous session feedback if any
   document.getElementById("question-display").textContent = "Press 'Next Word' to begin";
 }

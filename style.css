@@ -58,6 +58,7 @@ section {
   margin-bottom: 1rem;
 }
 
+/* Hide dropdown content by default */
 .dropdown-content {
   display: none;
   position: absolute;
@@ -69,7 +70,8 @@ section {
   border-radius: 5px;
 }
 
-.dropdown:hover .dropdown-content {
+/* Show dropdown content when .active class is applied */
+.dropdown.active .dropdown-content {
   display: block;
 }
 
