@@ -1,12 +1,11 @@
 /* app.js */
 
 // -----------------------
-// IndexedDB Setup (v2)
+// IndexedDB Setup (version 2 with a progress store)
 // -----------------------
 let db;
 function openDB() {
   return new Promise((resolve, reject) => {
-    // Use version 2 to add the "progress" store
     const request = indexedDB.open("HebrewDB", 2);
     request.onupgradeneeded = function(e) {
       db = e.target.result;
@@ -14,7 +13,7 @@ function openDB() {
         db.createObjectStore("lists", { keyPath: "id", autoIncrement: true });
       }
       if (!db.objectStoreNames.contains("progress")) {
-        // Use the date (YYYY-MM-DD) as the key
+        // Use date (YYYY-MM-DD) as key
         db.createObjectStore("progress", { keyPath: "date" });
       }
     };
@@ -187,10 +186,10 @@ function parseDCPText(text) {
 // Global Variables & UI Elements
 // -----------------------
 let currentList = null; // Loaded list object
-let sessionWords = [];  // Deep copies for the current session
+let sessionWords = [];  // Deep copies for current session
 let currentWordIndex = -1;
 let globalSessionMode = false;
-let progressRecorded = false; // To ensure progress is recorded only once per session
+let progressRecorded = false; // To record progress only once per session
 
 const fileInput = document.getElementById("fileInput");
 const uploadFileButton = document.getElementById("uploadFileButton");
@@ -262,7 +261,7 @@ function updateSidePanel() {
 // Flashcard Session Functions
 // -----------------------
 function startSession(wordsArray, isGlobalMode = false) {
-  progressRecorded = false; // Reset flag for this session
+  progressRecorded = false;
   sessionWords = wordsArray.map(word => {
     return {
       english: word.english,
@@ -271,7 +270,6 @@ function startSession(wordsArray, isGlobalMode = false) {
       correctCount: word.correctCount,
       incorrectCount: word.incorrectCount,
       correctStreak: 0
-      // For global sessions, parentListId will be added later as needed.
     };
   });
   shuffle(sessionWords);
@@ -342,10 +340,9 @@ function checkAnswer() {
   }
   
   correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
-  
   updateSidePanel();
   
-  // Update overall statistics in the database (save with default status).
+  // Update the database record (always storing status as default)
   if (!globalSessionMode && currentList) {
     for (let word of currentList.words) {
       if (word.english === currentWord.english &&
@@ -358,7 +355,7 @@ function checkAnswer() {
       }
     }
     updateListInDB(currentList).then(() => {
-      console.log("List updated in DB (single-list mode).");
+      console.log("List updated (single-list mode).");
     });
   } else if (globalSessionMode && currentWord.parentListId) {
     getListFromDB(currentWord.parentListId).then(list => {
@@ -374,13 +371,13 @@ function checkAnswer() {
           }
         }
         updateListInDB(list).then(() => {
-          console.log("Parent list updated in DB (global mode).");
+          console.log("Parent list updated (global mode).");
         });
       }
     });
   }
   
-  // If all words in the session are known, display a "Well done" message and record progress.
+  // If all words are marked known, display "Well done!" and record progress.
   if (sessionWords.every(word => word.status === "known")) {
     feedbackDiv.textContent += " Well done!";
     recordProgress(sessionWords.length);
@@ -388,7 +385,7 @@ function checkAnswer() {
 }
 
 // -----------------------
-// Progress Recording
+// Progress Recording Functions
 // -----------------------
 function recordProgress(wordsLearned) {
   if (progressRecorded) return;
@@ -408,7 +405,7 @@ function recordProgress(wordsLearned) {
 }
 
 // -----------------------
-// Statistics Modal Functions (Word Stats)
+// Word Statistics Modal
 // -----------------------
 function displayStatistics() {
   getAllListsFromDB().then(lists => {
@@ -418,7 +415,6 @@ function displayStatistics() {
         allWords.push({ english: word.english, correctCount: word.correctCount, incorrectCount: word.incorrectCount });
       });
     });
-    // Build table rows.
     statsTableBody.innerHTML = "";
     allWords.forEach(word => {
       const total = word.correctCount + word.incorrectCount;
@@ -442,33 +438,38 @@ function showWordGraph() {
       list.words.forEach(word => {
         const total = word.correctCount + word.incorrectCount;
         const ratio = total > 0 ? (word.incorrectCount / total) : 0;
-        allWords.push({ label: word.english, ratio: ratio });
+        allWords.push(ratio);
       });
     });
-    const labels = allWords.map(w => w.label);
-    const data = allWords.map(w => w.ratio);
-    const ctx = document.getElementById("wordGraphCanvas").getContext("2d");
+    // Create histogram bins (10 bins: 0-0.1, 0.1-0.2, ..., 0.9-1.0)
+    const bins = new Array(10).fill(0);
+    allWords.forEach(ratio => {
+      let index = Math.floor(ratio * 10);
+      if (index >= 10) index = 9;
+      bins[index]++;
+    });
+    const labels = ["0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"];
+    const ctx = wordGraphCanvas.getContext("2d");
     if (wordChart) wordChart.destroy();
     wordChart = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: labels,
         datasets: [{
-          label: 'Incorrect Ratio',
-          data: data,
+          label: 'Number of Words',
+          data: bins,
           backgroundColor: 'rgba(211,47,47,0.7)'
         }]
       },
       options: {
         scales: {
           y: {
-            beginAtZero: true,
-            max: 1
+            beginAtZero: true
           }
         }
       }
     });
-    document.getElementById("graphModal").style.display = "block";
+    graphModal.style.display = "block";
   });
 }
 
@@ -478,7 +479,7 @@ function showProgressGraph() {
     records.sort((a, b) => a.date.localeCompare(b.date));
     const labels = records.map(r => r.date);
     const data = records.map(r => r.wordsLearned);
-    const ctx = document.getElementById("progressGraphCanvas").getContext("2d");
+    const ctx = progressGraphCanvas.getContext("2d");
     if (progressChart) progressChart.destroy();
     progressChart = new Chart(ctx, {
       type: 'bar',
@@ -498,26 +499,25 @@ function showProgressGraph() {
         }
       }
     });
-    document.getElementById("progressModal").style.display = "block";
+    progressModal.style.display = "block";
   });
 }
 
 function showProgressTable() {
   getAllProgressRecords().then(records => {
     records.sort((a, b) => a.date.localeCompare(b.date));
-    const tbody = document.querySelector("#progressTable tbody");
-    tbody.innerHTML = "";
+    progressTableBody.innerHTML = "";
     records.forEach(record => {
       const row = document.createElement("tr");
       row.innerHTML = `<td>${record.date}</td><td>${record.wordsLearned}</td><td>${record.testsDone}</td>`;
-      tbody.appendChild(row);
+      progressTableBody.appendChild(row);
     });
-    document.getElementById("progressTableModal").style.display = "block";
+    progressTableModal.style.display = "block";
   });
 }
 
 // -----------------------
-// Event Listeners for New Buttons and Modal Closes
+// Event Listeners for Buttons and Modals
 // -----------------------
 checkButton.addEventListener("click", checkAnswer);
 nextButton.addEventListener("click", nextWord);
@@ -527,7 +527,6 @@ progressGraphButton.addEventListener("click", showProgressGraph);
 progressTableButton.addEventListener("click", showProgressTable);
 
 leastKnownButton.addEventListener("click", function() {
-  // Global least-known session: aggregate words from all lists.
   getAllListsFromDB().then(lists => {
     let aggregatedWords = [];
     lists.forEach(list => {
@@ -547,7 +546,9 @@ leastKnownButton.addEventListener("click", function() {
   });
 });
 
-// Allow multiple file upload with default name suggestion.
+// -----------------------
+// File Upload (Multiple Files with Default Name Suggestion)
+// -----------------------
 uploadFileButton.addEventListener("click", function() {
   const files = fileInput.files;
   if (!files || files.length === 0) {
@@ -655,7 +656,9 @@ deleteListButton.addEventListener("click", function() {
   }
 });
 
-// Populate the dropdown with lists sorted alphabetically.
+// -----------------------
+// Populate the List Dropdown (Sorted Alphabetically)
+// -----------------------
 function populateListDropdown() {
   getAllListsFromDB().then(lists => {
     lists.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
@@ -670,13 +673,12 @@ function populateListDropdown() {
 }
 
 // -----------------------
-// Modal Close Event Listeners
+// Modal Close Listeners
 // -----------------------
 closeStatsModal.addEventListener("click", () => { statsModal.style.display = "none"; });
 closeGraphModal.addEventListener("click", () => { graphModal.style.display = "none"; });
 closeProgressModal.addEventListener("click", () => { progressModal.style.display = "none"; });
 closeProgressTableModal.addEventListener("click", () => { progressTableModal.style.display = "none"; });
-
 window.addEventListener("click", function(event) {
   if (event.target === statsModal) statsModal.style.display = "none";
   if (event.target === graphModal) graphModal.style.display = "none";
