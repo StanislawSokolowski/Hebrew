@@ -1,5 +1,3 @@
-// script.js
-
 "use strict";
 
 // Global database object
@@ -38,7 +36,7 @@ function toggleDropdown(button) {
   }
 }
 
-// Close dropdowns if click is outside any dropdown container.
+// Close dropdowns if the click is outside any dropdown container.
 window.onclick = function (event) {
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -120,7 +118,6 @@ function loadFiles() {
     const reader = new FileReader();
     reader.onload = event => {
       const content = event.target.result;
-      // Use file name (without extension) as list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
       const words = parseDCPFile(content);
       if (words.length) {
@@ -128,7 +125,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // Optionally clear indicators if the loaded list is currently active
+        // Optionally clear indicators if this list is currently active
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -307,22 +304,45 @@ function showDatabaseStats() {
 
 // ===== Flashcard Practice Functions =====
 
-// Resets the session state and creates fresh indicators based on the new test’s word count.
-// Immediately calls nextWord() to display the first word.
-function initializeSession(wordsArray) {
-  currentSession = shuffle([...wordsArray]); // Randomize the word order
+// Resets test state completely, randomizes the selected list's words, creates new indicators, and immediately displays the first word.
+function startTest() {
+  const testListSelect = document.getElementById("test-list-select");
+  const selectedList = testListSelect.value;
+  if (!selectedList) {
+    alert("Please select a list to start the test.");
+    return;
+  }
+  // Reset previous session state completely
+  currentSession = [];
   currentWordIndex = -1;
   answeredThisWord = false;
-  // Clear previous input, feedback, and indicators
+  document.getElementById("feedback-indicators").innerHTML = "";
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
+  document.getElementById("question-display").textContent = "";
+  
+  // Set current list and get its word list
+  currentListName = selectedList;
+  const wordList = database.lists[selectedList] || [];
+  if (wordList.length === 0) {
+    alert("The selected list is empty.");
+    return;
+  }
+  
+  // Create a new randomized session
+  currentSession = shuffle([...wordList]);
+  // Create new indicator squares based on the new session's word count
   populateIndicators(currentSession.length);
+  // Update test info display
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
-  // Automatically show the first word
-  nextWord();
+  // Set session index to 0 and display the first word
+  currentWordIndex = 0;
+  answeredThisWord = false;
+  const firstWord = currentSession[currentWordIndex];
+  document.getElementById("question-display").textContent = mode === "en-to-he" ? firstWord.english : firstWord.hebrewOptions[0];
 }
 
-// Fisher–Yates shuffle to randomize the array
+// Fisher–Yates shuffle to randomize an array
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -331,7 +351,7 @@ function shuffle(array) {
   return array;
 }
 
-// Creates indicator squares for each word in the randomized session.
+// Creates indicator squares (one per word in the current session), each labeled with its order in the session.
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -346,7 +366,7 @@ function populateIndicators(count) {
     square.style.lineHeight = "20px";
     square.style.fontSize = "0.8rem";
     square.style.color = "#000";
-    square.textContent = i + 1; // Label with session order
+    square.textContent = i + 1;
     indicatorsDiv.appendChild(square);
   }
 }
@@ -361,19 +381,16 @@ function nextWord() {
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
     recordDailyProgress();
-    // Clear session state so that a new test can be started
+    // Clear session state to force starting a new test
     currentSession = [];
     currentWordIndex = -1;
     return;
   }
   answeredThisWord = false;
   const word = currentSession[currentWordIndex];
-  // Clear previous input and feedback
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
-  // Display the current word according to the selected mode
-  document.getElementById("question-display").textContent =
-    mode === "en-to-he" ? word.english : word.hebrewOptions[0];
+  document.getElementById("question-display").textContent = mode === "en-to-he" ? word.english : word.hebrewOptions[0];
 }
 
 // Checks the answer for the current word and updates its corresponding indicator.
@@ -392,8 +409,7 @@ function checkAnswer() {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
   // Always display the correct answer
-  document.getElementById("correct-answer-display").textContent =
-    mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
+  document.getElementById("correct-answer-display").textContent = mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
   if (isCorrect) {
     word.stats.correct++;
   } else {
@@ -402,8 +418,7 @@ function checkAnswer() {
   saveDatabase();
   const indicatorsDiv = document.getElementById("feedback-indicators");
   if (indicatorsDiv.children[currentWordIndex]) {
-    indicatorsDiv.children[currentWordIndex].style.backgroundColor =
-      isCorrect ? "var(--success-color)" : "var(--error-color)";
+    indicatorsDiv.children[currentWordIndex].style.backgroundColor = isCorrect ? "var(--success-color)" : "var(--error-color)";
   }
   answeredThisWord = true;
 }
@@ -423,30 +438,4 @@ function recordDailyProgress() {
   const sessionCorrect = currentSession.filter(word => word.stats.correct > 0).length;
   progress.knownCount += sessionCorrect;
   saveDatabase();
-}
-
-// Starts a new test session based on the selected list from the test selection dropdown.
-// This function completely resets all test state and then calls initializeSession to begin the test.
-function startTest() {
-  const testListSelect = document.getElementById("test-list-select");
-  const selectedList = testListSelect.value;
-  if (!selectedList) {
-    alert("Please select a list to start the test.");
-    return;
-  }
-  // Reset previous session state completely
-  currentSession = [];
-  currentWordIndex = -1;
-  answeredThisWord = false;
-  document.getElementById("feedback-indicators").innerHTML = "";
-  document.getElementById("answer-input").value = "";
-  document.getElementById("correct-answer-display").textContent = "";
-  // Set current list and initialize a new session
-  currentListName = selectedList;
-  const wordList = database.lists[selectedList] || [];
-  if (wordList.length === 0) {
-    alert("The selected list is empty.");
-    return;
-  }
-  initializeSession(wordList);
 }
