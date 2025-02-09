@@ -43,45 +43,53 @@ input[type="file"] {
 
 /* Custom styled file input label */
 .custom-file-label {
-  background-color: #317EFB;
-  color: #fff;
-  padding: 10px;
-  font-size: 16px;
-  border: none;
+  background: none;
+  border: 2px solid #317EFB;
   border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #317EFB;
   cursor: pointer;
   display: inline-block;
   margin-bottom: 5px;
+  transition: background 0.3s, color 0.3s;
+}
+.custom-file-label:hover {
+  background: #317EFB;
+  color: #fff;
 }
 
-/* Style for select, input text, and buttons */
+/* Style for select and input text */
 select,
 input[type="text"] {
   padding: 10px;
-  font-size: 16px;
-  border: none;
+  font-size: 14px;
+  border: 2px solid #317EFB;
   border-radius: 4px;
   margin: 5px 0;
   width: 100%;
   box-sizing: border-box;
+  background: none;
+  color: #e0e0e0;
 }
 
-/* Fancy button styling */
+/* Modern button styling */
 button {
-  background: linear-gradient(45deg, #317EFB, #1e63d4);
-  color: #fff;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  transition: transform 0.2s, box-shadow 0.2s;
+  background: none;
+  border: 2px solid #317EFB;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #317EFB;
+  transition: background 0.3s, color 0.3s;
   margin: 5px;
   cursor: pointer;
 }
 button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(49,126,251,0.5);
+  background: #317EFB;
+  color: #fff;
 }
 
 /* Vertical layout for flashcard container */
@@ -145,29 +153,29 @@ input.wrong {
 
 /* Modal styles for statistics */
 .modal {
-  display: none; 
-  position: fixed; 
+  display: none;
+  position: fixed;
   z-index: 100;
   left: 0;
   top: 0;
-  width: 100%; 
-  height: 100%; 
+  width: 100%;
+  height: 100%;
   overflow: auto;
-  background-color: rgba(0,0,0,0.7); 
+  background-color: rgba(0,0,0,0.7);
 }
 
 .modal-content {
   background-color: #1e1e1e;
-  margin: 10% auto; 
+  margin: 10% auto;
   padding: 20px;
-  border: 1px solid #888;
+  border: 2px solid #317EFB;
   width: 80%;
   max-width: 600px;
   border-radius: 8px;
 }
 
 .close {
-  color: #aaa;
+  color: #317EFB;
   float: right;
   font-size: 28px;
   font-weight: bold;
@@ -193,7 +201,7 @@ th, td {
 
 /* New rule for larger nikkud answer */
 .nikkud-answer {
-  font-size: 36px;  /* Adjust size as desired */
+  font-size: 36px;
   font-weight: bold;
   color: #388e3c;
 }
