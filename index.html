@@ -23,10 +23,11 @@
         <button class="dropbtn">Manage Database</button>
         <div class="dropdown-content">
           <div>
-            <!-- Styled file input for .dcp files -->
-            <label for="file-input" class="file-input-button">Choose Files</label>
-            <!-- Instead of display:none, we use opacity and positioning to hide the input -->
-            <input type="file" id="file-input" multiple accept=".dcp" style="opacity:0; position:absolute; z-index:-1;" />
+            <!-- Custom file input for .dcp files wrapped inside the label -->
+            <label class="file-input-button">
+              Choose Files
+              <input type="file" id="file-input" multiple accept=".dcp" style="width: 0; height: 0; opacity: 0;" />
+            </label>
             <button id="load-files-btn">Load Selected Files</button>
           </div>
           <hr />
@@ -40,9 +41,11 @@
           <hr />
           <div>
             <button id="export-db-btn">Export Database</button>
-            <!-- Styled file input for JSON import -->
-            <label for="import-db-input" class="file-input-button">Choose Import File</label>
-            <input type="file" id="import-db-input" accept=".json" style="opacity:0; position:absolute; z-index:-1;" />
+            <!-- Custom file input for JSON import wrapped inside the label -->
+            <label class="file-input-button">
+              Choose Import File
+              <input type="file" id="import-db-input" accept=".json" style="width: 0; height: 0; opacity: 0;" />
+            </label>
             <button id="import-db-btn">Import Database</button>
           </div>
         </div>
