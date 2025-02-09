@@ -13,7 +13,6 @@ function openDB() {
         db.createObjectStore("lists", { keyPath: "id", autoIncrement: true });
       }
       if (!db.objectStoreNames.contains("progress")) {
-        // Use date (YYYY-MM-DD) as key
         db.createObjectStore("progress", { keyPath: "date" });
       }
     };
@@ -185,11 +184,11 @@ function parseDCPText(text) {
 // -----------------------
 // Global Variables & UI Elements
 // -----------------------
-let currentList = null; // Loaded list object
-let sessionWords = [];  // Deep copies for current session
+let currentList = null;
+let sessionWords = [];
 let currentWordIndex = -1;
 let globalSessionMode = false;
-let progressRecorded = false; // To record progress once per session
+let progressRecorded = false;
 
 const fileInput = document.getElementById("fileInput");
 const uploadFileButton = document.getElementById("uploadFileButton");
@@ -203,6 +202,7 @@ const progressGraphButton = document.getElementById("progressGraphButton");
 const progressTableButton = document.getElementById("progressTableButton");
 const exportDBButton = document.getElementById("exportDBButton");
 const importDBButton = document.getElementById("importDBButton");
+const importInput = document.getElementById("importInput");
 
 const questionDiv = document.getElementById("question");
 const correctAnswerDiv = document.getElementById("correctAnswer");
@@ -227,8 +227,6 @@ const progressGraphCanvas = document.getElementById("progressGraphCanvas");
 const progressTableModal = document.getElementById("progressTableModal");
 const closeProgressTableModal = document.getElementById("closeProgressTableModal");
 const progressTableBody = document.querySelector("#progressTable tbody");
-
-const importInput = document.getElementById("importInput");
 
 // -----------------------
 // Helper Function: Shuffle (Fisher-Yates)
@@ -346,7 +344,7 @@ function checkAnswer() {
   correctAnswerDiv.innerHTML = `Correct Answer:<br><span class="nikkud-answer">${canonicalAnswer}</span>`;
   updateSidePanel();
   
-  // Update overall DB records (store status as "default")
+  // Update overall database records (always storing status as "default")
   if (!globalSessionMode && currentList) {
     for (let word of currentList.words) {
       if (word.english === currentWord.english &&
@@ -409,84 +407,6 @@ function recordProgress(wordsLearned) {
 }
 
 // -----------------------
-// Database Export/Import Functions
-// -----------------------
-function exportDatabase() {
-  Promise.all([getAllListsFromDB(), getAllProgressRecords()])
-    .then(([lists, progress]) => {
-      const data = { lists, progress };
-      const jsonStr = JSON.stringify(data, null, 2);
-      const blob = new Blob([jsonStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "hebrew_database_export_" + new Date().toISOString().split('T')[0] + ".json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    })
-    .catch(err => console.error(err));
-}
-
-function importDatabase(file) {
-  const reader = new FileReader();
-  reader.readAsText(file, "utf-8");
-  reader.onload = function() {
-    try {
-      const data = JSON.parse(reader.result);
-      // Data must contain "lists" and "progress"
-      if (!data.lists || !data.progress) {
-        feedbackDiv.textContent = "Invalid database file.";
-        return;
-      }
-      // For simplicity, clear current lists store and progress store
-      const transaction = db.transaction(["lists", "progress"], "readwrite");
-      const listsStore = transaction.objectStore("lists");
-      const progressStore = transaction.objectStore("progress");
-      
-      // Clear stores and then add new items.
-      listsStore.clear().onsuccess = () => {
-        data.lists.forEach(list => {
-          listsStore.add(list);
-        });
-      };
-      progressStore.clear().onsuccess = () => {
-        data.progress.forEach(record => {
-          progressStore.add(record);
-        });
-      };
-      
-      transaction.oncomplete = () => {
-        feedbackDiv.textContent = "Database imported successfully.";
-        populateListDropdown();
-      };
-      transaction.onerror = (e) => {
-        feedbackDiv.textContent = "Error importing database.";
-      };
-    } catch (err) {
-      feedbackDiv.textContent = "Error parsing JSON.";
-    }
-  };
-  reader.onerror = function() {
-    feedbackDiv.textContent = "Error reading import file.";
-  };
-}
-
-// -----------------------
-// Overall Word Count Calculation
-// -----------------------
-function updateOverallWordCount() {
-  getAllListsFromDB().then(lists => {
-    let count = 0;
-    lists.forEach(list => {
-      count += list.words.length;
-    });
-    document.getElementById("overallWordCount").textContent = "Overall word count: " + count;
-  });
-}
-
-// -----------------------
 // Word Statistics Modal
 // -----------------------
 function displayStatistics() {
@@ -507,6 +427,17 @@ function displayStatistics() {
     });
     statsModal.style.display = "block";
   });
+  updateOverallWordCount();
+}
+
+function updateOverallWordCount() {
+  getAllListsFromDB().then(lists => {
+    let count = 0;
+    lists.forEach(list => {
+      count += list.words.length;
+    });
+    document.getElementById("overallWordCount").textContent = "Overall word count: " + count;
+  });
 }
 
 // -----------------------
@@ -523,14 +454,13 @@ function showWordGraph() {
         allWords.push(ratio);
       });
     });
-    // Create histogram bins (10 bins: 0-0.1, 0.1-0.2, …, 0.9-1.0)
     const bins = new Array(10).fill(0);
     allWords.forEach(ratio => {
       let index = Math.floor(ratio * 10);
       if (index >= 10) index = 9;
       bins[index]++;
     });
-    const labels = ["0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"];
+    const labels = ["0-0.1","0.1-0.2","0.2-0.3","0.3-0.4","0.4-0.5","0.5-0.6","0.6-0.7","0.7-0.8","0.8-0.9","0.9-1.0"];
     const ctx = wordGraphCanvas.getContext("2d");
     if (wordChart) wordChart.destroy();
     wordChart = new Chart(ctx, {
@@ -544,9 +474,7 @@ function showWordGraph() {
         }]
       },
       options: {
-        scales: {
-          y: { beginAtZero: true }
-        }
+        scales: { y: { beginAtZero: true } }
       }
     });
     graphModal.style.display = "block";
@@ -593,40 +521,7 @@ function showProgressTable() {
 }
 
 // -----------------------
-// Event Listeners for Buttons and Modals
-// -----------------------
-checkButton.addEventListener("click", checkAnswer);
-nextButton.addEventListener("click", nextWord);
-statsButton.addEventListener("click", function() {
-  displayStatistics();
-  updateOverallWordCount();
-});
-wordGraphButton.addEventListener("click", showWordGraph);
-progressGraphButton.addEventListener("click", showProgressGraph);
-progressTableButton.addEventListener("click", showProgressTable);
-
-leastKnownButton.addEventListener("click", function() {
-  getAllListsFromDB().then(lists => {
-    let aggregatedWords = [];
-    lists.forEach(list => {
-      list.words.forEach(word => {
-        const total = word.correctCount + word.incorrectCount;
-        const metric = total > 0 ? (word.incorrectCount / total) : 0;
-        const wordClone = Object.assign({}, word);
-        wordClone.parentListId = list.id;
-        wordClone.metric = metric;
-        aggregatedWords.push(wordClone);
-      });
-    });
-    aggregatedWords.sort((a, b) => b.metric - a.metric);
-    const leastKnown = aggregatedWords.slice(0, 20);
-    startSession(leastKnown, true);
-    updateSidePanel();
-  });
-});
-
-// -----------------------
-// Export / Import Database
+// Export / Import Database Functions
 // -----------------------
 function exportDatabase() {
   Promise.all([getAllListsFromDB(), getAllProgressRecords()])
@@ -662,7 +557,6 @@ function importDatabase() {
         feedbackDiv.textContent = "Invalid database file.";
         return;
       }
-      // Clear existing stores and import new data.
       const transaction = db.transaction(["lists", "progress"], "readwrite");
       const listsStore = transaction.objectStore("lists");
       const progressStore = transaction.objectStore("progress");
@@ -693,8 +587,54 @@ function importDatabase() {
 }
 
 // -----------------------
-// File Upload (Multiple Files with Default Name Suggestion)
+// Overall Word Count Update
 // -----------------------
+function updateOverallWordCount() {
+  getAllListsFromDB().then(lists => {
+    let count = 0;
+    lists.forEach(list => {
+      count += list.words.length;
+    });
+    document.getElementById("overallWordCount").textContent = "Overall word count: " + count;
+  });
+}
+
+// -----------------------
+// Event Listeners
+// -----------------------
+checkButton.addEventListener("click", checkAnswer);
+nextButton.addEventListener("click", nextWord);
+statsButton.addEventListener("click", displayStatistics);
+wordGraphButton.addEventListener("click", showWordGraph);
+progressGraphButton.addEventListener("click", showProgressGraph);
+progressTableButton.addEventListener("click", showProgressTable);
+exportDBButton.addEventListener("click", exportDatabase);
+importDBButton.addEventListener("click", () => {
+  // Trigger hidden file input for import
+  importInput.click();
+});
+importInput.addEventListener("change", importDatabase);
+
+leastKnownButton.addEventListener("click", function() {
+  getAllListsFromDB().then(lists => {
+    let aggregatedWords = [];
+    lists.forEach(list => {
+      list.words.forEach(word => {
+        const total = word.correctCount + word.incorrectCount;
+        const metric = total > 0 ? (word.incorrectCount / total) : 0;
+        const wordClone = Object.assign({}, word);
+        wordClone.parentListId = list.id;
+        wordClone.metric = metric;
+        aggregatedWords.push(wordClone);
+      });
+    });
+    aggregatedWords.sort((a, b) => b.metric - a.metric);
+    const leastKnown = aggregatedWords.slice(0, 20);
+    startSession(leastKnown, true);
+    updateSidePanel();
+  });
+});
+
 uploadFileButton.addEventListener("click", function() {
   const files = fileInput.files;
   if (!files || files.length === 0) {
@@ -765,9 +705,6 @@ uploadFileButton.addEventListener("click", function() {
   }
 });
 
-// -----------------------
-// Load, Delete, and Import/Export DB Button Listeners
-// -----------------------
 loadListButton.addEventListener("click", function() {
   const selectedId = dbListSelect.value;
   if (!selectedId) {
@@ -805,14 +742,8 @@ deleteListButton.addEventListener("click", function() {
   }
 });
 
-exportDBButton.addEventListener("click", exportDatabase);
-
-importDBButton.addEventListener("click", function() {
-  importDatabase();
-});
-
 // -----------------------
-// Populate List Dropdown (Sorted Alphabetically)
+// Populate the List Dropdown (Sorted Alphabetically)
 // -----------------------
 function populateListDropdown() {
   getAllListsFromDB().then(lists => {

@@ -16,7 +16,43 @@
   <div class="container">
     <h1>Hebrew</h1>
     
-    <!-- Mode Selector -->
+    <!-- Database Management Dropdown -->
+    <details class="db-management" open>
+      <summary>Database Management</summary>
+      <div class="controls">
+        <!-- Custom styled file input -->
+        <label for="fileInput" class="custom-file-label">Select .dcp File(s)</label>
+        <input type="file" id="fileInput" accept=".dcp" multiple>
+        <button id="uploadFileButton">Load File(s) to Database</button>
+      </div>
+      <div class="controls">
+        <label for="dbListSelect">Choose a List:</label>
+        <select id="dbListSelect"></select>
+        <button id="loadListButton">Load List</button>
+        <button id="deleteListButton">Delete List</button>
+      </div>
+      <div class="controls">
+        <button id="exportDBButton">Export Database</button>
+        <button id="importDBButton">Import Database</button>
+        <!-- Hidden file input for import -->
+        <input type="file" id="importInput" accept="application/json" style="display: none;">
+      </div>
+    </details>
+    
+    <!-- Statistics Management Dropdown -->
+    <details class="stats-management" open>
+      <summary>Statistics Management (<span id="overallWordCount"></span>)</summary>
+      <div class="controls">
+        <button id="statsButton">Show Word Statistics</button>
+        <button id="wordGraphButton">Show Word Ratio Graph</button>
+      </div>
+      <div class="controls">
+        <button id="progressGraphButton">Show Daily Progress Graph</button>
+        <button id="progressTableButton">Show Daily Progress Table</button>
+      </div>
+    </details>
+    
+    <!-- Mode Selector (outside dropdown for quick access) -->
     <div class="mode-controls">
       <label for="modeSelect">Select Mode:</label>
       <select id="modeSelect">
@@ -24,45 +60,6 @@
         <option value="hebToEng">Hebrew to English</option>
       </select>
     </div>
-    
-    <!-- Database Options Dropdown -->
-    <details id="dbOptions">
-      <summary>Database Options</summary>
-      <div class="db-options">
-        <div class="controls">
-          <!-- Custom styled file input -->
-          <label for="fileInput" class="custom-file-label">Select .dcp File(s)</label>
-          <input type="file" id="fileInput" accept=".dcp" multiple>
-          <button id="uploadFileButton">Load File(s) to Database</button>
-        </div>
-        <div class="controls">
-          <label for="dbListSelect">Choose a List:</label>
-          <select id="dbListSelect"></select>
-          <button id="loadListButton">Load List</button>
-          <button id="deleteListButton">Delete List</button>
-        </div>
-        <div class="controls">
-          <button id="exportDBButton">Export Database</button>
-          <button id="importDBButton">Import Database</button>
-          <!-- Hidden file input for importing database backup -->
-          <input type="file" id="importDBInput" accept=".json" style="display:none">
-        </div>
-      </div>
-    </details>
-    
-    <!-- Statistics Options Dropdown -->
-    <details id="statsOptions">
-      <summary>Statistics Options</summary>
-      <div class="stats-options">
-        <div class="overall-word-count" id="overallWordCount">Overall Word Count: N/A</div>
-        <div class="controls">
-          <button id="statsButton">Show Word Statistics</button>
-          <button id="wordGraphButton">Show Word Ratio Graph</button>
-          <button id="progressGraphButton">Show Progress Graph</button>
-          <button id="progressTableButton">Show Progress Table</button>
-        </div>
-      </div>
-    </details>
     
     <!-- Flashcard and Side Panel -->
     <div class="flashcard-container">

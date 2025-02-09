@@ -1,13 +1,12 @@
-const CACHE_NAME = "hebrew-cache-v1";
+const CACHE_NAME = "hebrew-cache-v3";
 const urlsToCache = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
-  "./manifest.json"
-  // Uncomment these lines if you want to cache your icons:
-  // "./icons/icon-192.png",
-  // "./icons/icon-512.png"
+  "./manifest.json",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
 self.addEventListener("install", function(event) {
