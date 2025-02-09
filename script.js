@@ -2,12 +2,12 @@
 
 // Global database object
 let database = {
-  lists: {}, // Each key is a list name; value is an array of word objects: { english, hebrewOptions, stats: { correct, incorrect } }
+  lists: {}, // Each key is a list name; value is an array of word objects
   dailyProgress: [] // Array of { date, knownCount, listsCompleted }
 };
 
-let currentListName = ""; // Name of the current list being practiced
-let currentSession = [];  // Array of word objects for the current session
+let currentListName = ""; // Name of the current list in use
+let currentSession = [];  // Array of word objects for the current test session
 let currentWordIndex = -1;
 let mode = "en-to-he";    // Default mode
 let answeredThisWord = false;
@@ -17,24 +17,39 @@ document.addEventListener("DOMContentLoaded", () => {
   updateListDropdown();
   updateTestListDropdown();
   addEventListeners();
-  setupDropdownToggles();
 
-  // Register service worker for PWA
+  // Register service worker for PWA if supported
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").then(
-      (registration) => {
-        console.log("Service Worker registered with scope:", registration.scope);
-      },
-      (err) => {
-        console.error("Service Worker registration failed:", err);
-      }
+      registration => console.log("Service Worker registered with scope:", registration.scope),
+      error => console.error("Service Worker registration failed:", error)
     );
   }
 });
 
-// Load database from localStorage
+// --- Dropdown Toggling ---
+// This function toggles the "show" class on the dropdown-content inside the same container.
+function toggleDropdown(button) {
+  const dropdownContent = button.parentElement.querySelector(".dropdown-content");
+  if (dropdownContent) {
+    dropdownContent.classList.toggle("show");
+  }
+}
+
+// Hide any open dropdowns if clicking outside a dropdown button.
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    const dropdowns = document.getElementsByClassName("dropdown-content");
+    for (let i = 0; i < dropdowns.length; i++) {
+      dropdowns[i].classList.remove("show");
+    }
+  }
+};
+
+// --- Database and File Functions ---
+
 function loadDatabase() {
-  let data = localStorage.getItem("hebrewDatabase");
+  const data = localStorage.getItem("hebrewDatabase");
   if (data) {
     try {
       database = JSON.parse(data);
@@ -45,12 +60,10 @@ function loadDatabase() {
   }
 }
 
-// Save database to localStorage
 function saveDatabase() {
   localStorage.setItem("hebrewDatabase", JSON.stringify(database));
 }
 
-// Update the dropdown for DB management (ordered alphabetically)
 function updateListDropdown() {
   const listSelect = document.getElementById("list-select");
   listSelect.innerHTML = '<option value="">--Select List--</option>';
@@ -63,7 +76,6 @@ function updateListDropdown() {
   });
 }
 
-// Update the test selection dropdown (ordered alphabetically)
 function updateTestListDropdown() {
   const testListSelect = document.getElementById("test-list-select");
   testListSelect.innerHTML = '<option value="">--Select List--</option>';
@@ -76,7 +88,6 @@ function updateTestListDropdown() {
   });
 }
 
-// Add event listeners to buttons and inputs
 function addEventListeners() {
   document.getElementById("load-files-btn").addEventListener("click", loadFiles);
   document.getElementById("delete-list-btn").addEventListener("click", deleteList);
@@ -87,47 +98,13 @@ function addEventListeners() {
   document.getElementById("show-daily-progress-graph-btn").addEventListener("click", showDailyProgressGraph);
   document.getElementById("show-daily-progress-table-btn").addEventListener("click", showDailyProgressTable);
   document.getElementById("show-db-stats-btn").addEventListener("click", showDatabaseStats);
-  document.getElementById("mode-select").addEventListener("change", (e) => {
-    mode = e.target.value;
-  });
+  document.getElementById("mode-select").addEventListener("change", e => { mode = e.target.value; });
   document.getElementById("check-answer-btn").addEventListener("click", checkAnswer);
   document.getElementById("next-word-btn").addEventListener("click", nextWord);
   document.getElementById("load-least-known-btn").addEventListener("click", loadLeastKnown);
   document.getElementById("start-test-btn").addEventListener("click", startTest);
 }
 
-// Setup dropdown toggling by finding the dropdown content within the parent element
-function setupDropdownToggles() {
-  const dropdowns = document.querySelectorAll(".dropdown");
-  dropdowns.forEach(dropdown => {
-    const btn = dropdown.querySelector(".dropbtn");
-    if (btn) {
-      btn.addEventListener("click", function(e) {
-        e.stopPropagation();
-        // Find the dropdown-content inside the same parent (.dropdown)
-        const ddContent = dropdown.querySelector(".dropdown-content");
-        if (ddContent) {
-          // Toggle display between "block" and "none"
-          if (ddContent.style.display === "block") {
-            ddContent.style.display = "none";
-          } else {
-            // First, hide all dropdown contents
-            document.querySelectorAll(".dropdown-content").forEach(el => el.style.display = "none");
-            ddContent.style.display = "block";
-          }
-        }
-      });
-    }
-  });
-  // Hide all dropdowns when clicking outside
-  document.addEventListener("click", function(e) {
-    document.querySelectorAll(".dropdown-content").forEach(el => el.style.display = "none");
-  });
-}
-
-// --- File Loading and Parsing ---
-
-// When user clicks "Load Selected Files"
 function loadFiles() {
   const fileInput = document.getElementById("file-input");
   const files = fileInput.files;
@@ -147,7 +124,6 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If this list is currently active, reset the indicators
         if (currentListName === listName) {
           populateIndicators(0);
         }
@@ -157,24 +133,22 @@ function loadFiles() {
   });
 }
 
-// Parse a .dcp file (ignores lines that start with "HtE", "@" or are empty)
 function parseDCPFile(content) {
   const lines = content.split(/\r?\n/);
   const words = [];
-  for (let line of lines) {
+  lines.forEach(line => {
     line = line.trim();
-    if (!line || line.startsWith("@") || line.startsWith("HtE")) continue;
+    if (!line || line.startsWith("@") || line.startsWith("HtE")) return;
     const parts = line.split("=");
-    if (parts.length < 2) continue;
+    if (parts.length < 2) return;
     const english = parts[0].trim();
     const hebrewPart = parts.slice(1).join("=").trim();
     const hebrewOptions = hebrewPart.split("|").map(s => s.trim());
     words.push({ english, hebrewOptions, stats: { correct: 0, incorrect: 0 } });
-  }
+  });
   return words;
 }
 
-// Delete the selected list from the database
 function deleteList() {
   const listSelect = document.getElementById("list-select");
   const listName = listSelect.value;
@@ -190,8 +164,6 @@ function deleteList() {
     alert("List deleted.");
   }
 }
-
-// --- Database Export/Import ---
 
 function exportDatabase() {
   const dataStr = JSON.stringify(database, null, 2);
@@ -258,7 +230,7 @@ function showListStats() {
 function showHistogram() {
   const statsDisplay = document.getElementById("stats-display");
   const allWords = [];
-  for (let list in database.lists) {
+  for (const list in database.lists) {
     allWords.push(...database.lists[list]);
   }
   if (!allWords.length) {
@@ -320,7 +292,7 @@ function showDailyProgressTable() {
 function showDatabaseStats() {
   const statsDisplay = document.getElementById("stats-display");
   let totalWords = 0;
-  for (let list in database.lists) {
+  for (const list in database.lists) {
     totalWords += database.lists[list].length;
   }
   let html = `<h3>Database Statistics</h3>`;
@@ -330,19 +302,15 @@ function showDatabaseStats() {
 
 // --- Flashcard Practice Functions ---
 
-// Initialize session: randomize words, reset index, pre-populate indicators, and update test info.
 function initializeSession(wordsArray) {
   currentSession = shuffle([...wordsArray]);
   currentWordIndex = -1;
   answeredThisWord = false;
-  // Clear previous feedback
   document.getElementById("correct-answer-display").textContent = "";
   populateIndicators(currentSession.length);
-  // Update test info display
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
 }
 
-// Fisher-Yates Shuffle for randomizing words
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -351,20 +319,17 @@ function shuffle(array) {
   return array;
 }
 
-// Pre-populate the feedback indicators with default white squares
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
   for (let i = 0; i < count; i++) {
     const square = document.createElement("div");
-    square.style.backgroundColor = "#fff"; // default white
+    square.style.backgroundColor = "#fff";
     indicatorsDiv.appendChild(square);
   }
 }
 
-// When "Next Word" is clicked
 function nextWord() {
-  // If no session is active, try to initialize from the test selection dropdown
   if (!currentSession.length) {
     const testListSelect = document.getElementById("test-list-select");
     if (testListSelect.value) {
@@ -379,32 +344,24 @@ function nextWord() {
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
     recordDailyProgress();
-    // Reset session
     currentSession = [];
     currentWordIndex = -1;
     return;
   }
   answeredThisWord = false;
   const word = currentSession[currentWordIndex];
-  // Clear answer input and previous correct answer display
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
-  // Display question according to selected mode
   const questionDisplay = document.getElementById("question-display");
-  if (mode === "en-to-he") {
-    questionDisplay.textContent = word.english;
-  } else {
-    questionDisplay.textContent = word.hebrewOptions[0];
-  }
+  questionDisplay.textContent = mode === "en-to-he" ? word.english : word.hebrewOptions[0];
 }
 
-// When "Check" is clicked
 function checkAnswer() {
   if (currentWordIndex < 0 || currentWordIndex >= currentSession.length) {
     alert("Please press 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return; // Prevent double-checking
+  if (answeredThisWord) return;
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
@@ -413,25 +370,22 @@ function checkAnswer() {
   } else {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
-  // Always display the correct answer (for Hebrew, with nikkud if available)
   document.getElementById("correct-answer-display").textContent =
     mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
-  // Update the database stats
   if (isCorrect) {
     word.stats.correct++;
   } else {
     word.stats.incorrect++;
   }
   saveDatabase();
-  // Update the corresponding indicator square
   const indicatorsDiv = document.getElementById("feedback-indicators");
   if (indicatorsDiv.children[currentWordIndex]) {
-    indicatorsDiv.children[currentWordIndex].style.backgroundColor = isCorrect ? "var(--success-color)" : "var(--error-color)";
+    indicatorsDiv.children[currentWordIndex].style.backgroundColor =
+      isCorrect ? "var(--success-color)" : "var(--error-color)";
   }
   answeredThisWord = true;
 }
 
-// Record daily progress (this example records the number of words answered correctly)
 function recordDailyProgress() {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
@@ -443,13 +397,11 @@ function recordDailyProgress() {
     progress = { date: dateStr, knownCount: 0, listsCompleted: 0 };
     database.dailyProgress.push(progress);
   }
-  // Count all words answered in this session as “known”
   const sessionCorrect = currentSession.filter(word => word.stats.correct > 0).length;
   progress.knownCount += sessionCorrect;
   saveDatabase();
 }
 
-// Start a new test based on the test selection dropdown
 function startTest() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
@@ -459,6 +411,5 @@ function startTest() {
   }
   currentListName = selectedList;
   initializeSession(database.lists[selectedList]);
-  // Reset question display
   document.getElementById("question-display").textContent = "Press 'Next Word' to begin";
 }
