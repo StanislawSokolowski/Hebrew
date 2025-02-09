@@ -96,29 +96,32 @@ function addEventListeners() {
   document.getElementById("start-test-btn").addEventListener("click", startTest);
 }
 
-// Setup dropdown toggling using direct style changes
+// Setup dropdown toggling by finding the dropdown content within the parent element
 function setupDropdownToggles() {
-  // For each button with class "dropbtn", toggle its next sibling (.dropdown-content)
-  const dropbtns = document.querySelectorAll('.dropbtn');
-  dropbtns.forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      const dropdownContent = btn.nextElementSibling;
-      if (dropdownContent) {
-        // Toggle display style between "block" and "none"
-        if (dropdownContent.style.display === "block") {
-          dropdownContent.style.display = "none";
-        } else {
-          // Hide all dropdown contents first
-          document.querySelectorAll('.dropdown-content').forEach(dd => dd.style.display = "none");
-          dropdownContent.style.display = "block";
+  const dropdowns = document.querySelectorAll(".dropdown");
+  dropdowns.forEach(dropdown => {
+    const btn = dropdown.querySelector(".dropbtn");
+    if (btn) {
+      btn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        // Find the dropdown-content inside the same parent (.dropdown)
+        const ddContent = dropdown.querySelector(".dropdown-content");
+        if (ddContent) {
+          // Toggle display between "block" and "none"
+          if (ddContent.style.display === "block") {
+            ddContent.style.display = "none";
+          } else {
+            // First, hide all dropdown contents
+            document.querySelectorAll(".dropdown-content").forEach(el => el.style.display = "none");
+            ddContent.style.display = "block";
+          }
         }
-      }
-    });
+      });
+    }
   });
-  // Hide all dropdown contents when clicking anywhere outside
-  document.addEventListener('click', function(e) {
-    document.querySelectorAll('.dropdown-content').forEach(dd => dd.style.display = "none");
+  // Hide all dropdowns when clicking outside
+  document.addEventListener("click", function(e) {
+    document.querySelectorAll(".dropdown-content").forEach(el => el.style.display = "none");
   });
 }
 
@@ -132,9 +135,9 @@ function loadFiles() {
     alert("Please select at least one .dcp file.");
     return;
   }
-  Array.from(files).forEach((file) => {
+  Array.from(files).forEach(file => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = event => {
       const content = event.target.result;
       // Use the file name (without extension) as the list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
@@ -165,7 +168,7 @@ function parseDCPFile(content) {
     if (parts.length < 2) continue;
     const english = parts[0].trim();
     const hebrewPart = parts.slice(1).join("=").trim();
-    const hebrewOptions = hebrewPart.split("|").map((s) => s.trim());
+    const hebrewOptions = hebrewPart.split("|").map(s => s.trim());
     words.push({ english, hebrewOptions, stats: { correct: 0, incorrect: 0 } });
   }
   return words;
@@ -209,7 +212,7 @@ function importDatabase() {
   }
   const file = input.files[0];
   const reader = new FileReader();
-  reader.onload = (event) => {
+  reader.onload = event => {
     try {
       database = JSON.parse(event.target.result);
       updateListDropdown();
@@ -237,7 +240,7 @@ function showListStats() {
   let html = `<h3>Statistics for list: ${listName}</h3>`;
   html += "<table border='1' style='margin:auto;'>";
   html += "<tr><th>English</th><th>Hebrew Options</th><th>Correct</th><th>Incorrect</th><th>Ratio</th></tr>";
-  words.forEach((word) => {
+  words.forEach(word => {
     const attempts = word.stats.correct + word.stats.incorrect;
     const ratio = attempts ? (word.stats.correct / attempts).toFixed(2) : "N/A";
     html += `<tr>
@@ -263,7 +266,7 @@ function showHistogram() {
     return;
   }
   const bins = Array(20).fill(0);
-  allWords.forEach((word) => {
+  allWords.forEach(word => {
     const attempts = word.stats.correct + word.stats.incorrect;
     const ratio = attempts ? word.stats.correct / attempts : 0;
     let index = Math.floor(ratio * 20);
@@ -273,7 +276,7 @@ function showHistogram() {
   const maxCount = Math.max(...bins);
   let html = "<h3>Histogram of Correct Ratios (20 bins)</h3>";
   html += '<div class="histogram-container">';
-  bins.forEach((count) => {
+  bins.forEach(count => {
     const barHeight = maxCount > 0 ? (count / maxCount * 100) : 0;
     html += `<div class="histogram-bar" style="height: ${barHeight}%;"><span>${count}</span></div>`;
   });
@@ -288,7 +291,7 @@ function showDailyProgressGraph() {
     return;
   }
   let html = "<h3>Daily Progress Graph</h3>";
-  database.dailyProgress.forEach((entry) => {
+  database.dailyProgress.forEach(entry => {
     html += `<div>${entry.date}: ${"*".repeat(entry.knownCount)} (${entry.knownCount} words known)</div>`;
   });
   statsDisplay.innerHTML = html;
@@ -303,7 +306,7 @@ function showDailyProgressTable() {
   let html = "<h3>Daily Progress Table</h3>";
   html += "<table border='1' style='margin:auto;'>";
   html += "<tr><th>Date</th><th>Words Known</th><th>Lists Completed</th></tr>";
-  database.dailyProgress.forEach((entry) => {
+  database.dailyProgress.forEach(entry => {
     html += `<tr>
       <td>${entry.date}</td>
       <td>${entry.knownCount}</td>
@@ -410,7 +413,7 @@ function checkAnswer() {
   } else {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
-  // Always display the correct answer (for Hebrew, showing with nikkud if available)
+  // Always display the correct answer (for Hebrew, with nikkud if available)
   document.getElementById("correct-answer-display").textContent =
     mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
   // Update the database stats
