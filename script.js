@@ -19,12 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTestListDropdown();
   addEventListeners();
 
-  // Automatically reset the test session whenever the test-list dropdown is clicked or changed.
-  const testListSelect = document.getElementById("test-list-select");
-  testListSelect.addEventListener("change", resetTestSession);
-  testListSelect.addEventListener("click", resetTestSession);
+  // Automatically reset/start the test session when the test list selection changes.
+  document.getElementById("test-list-select").addEventListener("change", resetTestSession);
 
-  // Register service worker if supported
+  // Register service worker if supported.
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js")
       .then(registration => console.log("Service Worker registered with scope:", registration.scope))
@@ -40,6 +38,7 @@ function toggleDropdown(button) {
   }
 }
 
+// Only close dropdowns if the click is outside any dropdown container.
 window.onclick = function(event) {
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -118,6 +117,7 @@ function loadFiles() {
     const reader = new FileReader();
     reader.onload = event => {
       const content = event.target.result;
+      // Use the file name (without extension) as the list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
       const words = parseDCPFile(content);
       if (words.length) {
@@ -125,7 +125,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If the loaded list is currently active, clear the indicators.
+        // If the loaded list is currently active, clear previous indicators.
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -302,14 +302,13 @@ function showDatabaseStats() {
 }
 
 // ===== Flashcard Practice Functions =====
-
-// This function resets the test session completely and automatically starts the test
+// This function resets all test state and immediately starts the test
 // using the list selected in the "Select List for Test" dropdown.
 function resetTestSession() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
   
-  // Clear any existing test session state
+  // Clear previous test state
   currentSession = [];
   currentWordIndex = -1;
   answeredThisWord = false;
@@ -328,21 +327,18 @@ function resetTestSession() {
     return;
   }
   
-  // Randomize the words and set as the current session
+  // Randomize words and set as current session
   currentSession = shuffle([...wordList]);
-  // Create new indicator squares
   populateIndicators(currentSession.length);
-  // Update test info
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
   
-  // Set session index to 0 and immediately display the first word
+  // Set session index to 0 and display the first word immediately
   currentWordIndex = 0;
   answeredThisWord = false;
   const firstWord = currentSession[currentWordIndex];
   document.getElementById("question-display").textContent =
     mode === "en-to-he" ? firstWord.english : firstWord.hebrewOptions[0];
-  
-  // Set focus on the answer input field so you can start typing immediately
+  // Focus the answer input field for immediate typing
   document.getElementById("answer-input").focus();
 }
 
@@ -385,7 +381,6 @@ function nextWord() {
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
     recordDailyProgress();
-    // Clear session state to force a new test
     currentSession = [];
     currentWordIndex = -1;
     return;
@@ -396,7 +391,6 @@ function nextWord() {
   document.getElementById("correct-answer-display").textContent = "";
   document.getElementById("question-display").textContent =
     mode === "en-to-he" ? word.english : word.hebrewOptions[0];
-  // Focus the input field for immediate typing
   document.getElementById("answer-input").focus();
 }
 
@@ -406,7 +400,7 @@ function checkAnswer() {
     alert("Please click 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return; // Prevent double-checking
+  if (answeredThisWord) return;
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
@@ -415,7 +409,6 @@ function checkAnswer() {
   } else {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
-  // Always display the correct answer
   document.getElementById("correct-answer-display").textContent =
     mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
   if (isCorrect) {
