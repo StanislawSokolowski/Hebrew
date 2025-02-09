@@ -2,7 +2,7 @@
 
 // Global database object
 let database = {
-  lists: {}, // { listName: [ { english, hebrewOptions, stats: { correct, incorrect } }, ... ] }
+  lists: {},       // { listName: [ { english, hebrewOptions, stats: { correct, incorrect } }, ... ] }
   dailyProgress: [] // [ { date, knownCount, listsCompleted }, ... ]
 };
 
@@ -18,10 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
   updateListDropdown();
   updateTestListDropdown();
   addEventListeners();
-
-  // When a new list is selected in the test dropdown, reset the test session automatically.
+  
+  // Automatically reset the test session whenever the test-list dropdown changes.
   document.getElementById("test-list-select").addEventListener("change", resetTestSession);
-
+  
   // Register service worker if supported
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js")
@@ -38,7 +38,6 @@ function toggleDropdown(button) {
   }
 }
 
-// Close dropdowns only if click is outside a dropdown container.
 window.onclick = function(event) {
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -117,7 +116,6 @@ function loadFiles() {
     const reader = new FileReader();
     reader.onload = event => {
       const content = event.target.result;
-      // Use file name (without extension) as list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
       const words = parseDCPFile(content);
       if (words.length) {
@@ -125,7 +123,7 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // Optionally clear indicators if this list is currently active
+        // If the loaded list is currently active, clear indicators.
         if (currentListName === listName) {
           document.getElementById("feedback-indicators").innerHTML = "";
         }
@@ -303,7 +301,8 @@ function showDatabaseStats() {
 
 // ===== Flashcard Practice Functions =====
 
-// When a new list is selected in the test dropdown, reset the session completely.
+// This function resets all test state and immediately starts a new session
+// using the selected list from the test dropdown.
 function resetTestSession() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
@@ -317,9 +316,7 @@ function resetTestSession() {
   document.getElementById("question-display").textContent = "";
   document.getElementById("test-info").textContent = "";
   
-  if (!selectedList) {
-    return;
-  }
+  if (!selectedList) return;
   
   currentListName = selectedList;
   const wordList = database.lists[selectedList] || [];
@@ -374,14 +371,19 @@ function populateIndicators(count) {
 // Advances to the next word in the current session.
 function nextWord() {
   if (currentSession.length === 0) {
-    alert("No active test session. Please select a list from the dropdown.");
-    return;
+    // If no active session, automatically reset using the selected list (if any)
+    const testListSelect = document.getElementById("test-list-select");
+    if (testListSelect.value) {
+      resetTestSession();
+    } else {
+      alert("No active test session. Please select a list from the dropdown.");
+      return;
+    }
   }
   currentWordIndex++;
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
     recordDailyProgress();
-    // Clear session state so that a new test can be started
     currentSession = [];
     currentWordIndex = -1;
     return;
@@ -400,7 +402,7 @@ function checkAnswer() {
     alert("Please click 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return; // Prevent double-checking
+  if (answeredThisWord) return;
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
@@ -409,7 +411,6 @@ function checkAnswer() {
   } else {
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
-  // Always display the correct answer
   document.getElementById("correct-answer-display").textContent =
     mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
   if (isCorrect) {
