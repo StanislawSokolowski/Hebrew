@@ -28,7 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // --- Dropdown Toggling ---
-// This function toggles the "show" class on the dropdown-content inside the same container.
+// Each dropdown button calls this function (via onclick in index.html)
+// It toggles the "show" class on the dropdown-content within the same container.
 function toggleDropdown(button) {
   const dropdownContent = button.parentElement.querySelector(".dropdown-content");
   if (dropdownContent) {
@@ -36,7 +37,7 @@ function toggleDropdown(button) {
   }
 }
 
-// Hide any open dropdowns if clicking outside a dropdown container.
+// Global click handler to close dropdowns only if the click is outside any dropdown container.
 window.onclick = function(event) {
   if (!event.target.closest('.dropdown')) {
     const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -126,9 +127,9 @@ function loadFiles() {
         updateListDropdown();
         updateTestListDropdown();
         saveDatabase();
-        // If this list is currently active, reset the indicators
+        // (Optional) If this list is currently active, clear indicators.
         if (currentListName === listName) {
-          populateIndicators(0);
+          document.getElementById("feedback-indicators").innerHTML = "";
         }
       }
     };
@@ -305,19 +306,21 @@ function showDatabaseStats() {
 
 // --- Flashcard Practice Functions ---
 
-// When a new test is started, this function initializes the session by shuffling the words from the chosen list,
-// resetting the current word index, and creating a set of indicator squares.
-// Each indicator square is labeled with its position in the randomized session.
+// Initializes a new test session by randomizing the words from the chosen list,
+// resetting the current word index, and (re)creating the indicator squares.
 function initializeSession(wordsArray) {
   currentSession = shuffle([...wordsArray]);
   currentWordIndex = -1;
   answeredThisWord = false;
+  // Clear any previous answer or feedback
   document.getElementById("correct-answer-display").textContent = "";
+  document.getElementById("answer-input").value = "";
+  // Create fresh indicator squares based on the new session length
   populateIndicators(currentSession.length);
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
 }
 
-// Fisher-Yates shuffle to randomize the words
+// Fisher-Yates shuffle to randomize the word order
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -326,8 +329,8 @@ function shuffle(array) {
   return array;
 }
 
-// Create indicator squares based on the number of words in the randomized session.
-// Each square is labeled with its order (1, 2, 3, …) to help map the random order.
+// Create indicator squares (one per word in the randomized session).
+// Each square is labeled with its session order (1, 2, 3, …).
 function populateIndicators(count) {
   const indicatorsDiv = document.getElementById("feedback-indicators");
   indicatorsDiv.innerHTML = "";
@@ -347,8 +350,9 @@ function populateIndicators(count) {
   }
 }
 
-// When "Next Word" is clicked, show the next word from the randomized session.
+// "Next Word" advances the session by incrementing the current word index and displaying the corresponding word.
 function nextWord() {
+  // If no session is active, try to initialize it from the selected test list.
   if (!currentSession.length) {
     const testListSelect = document.getElementById("test-list-select");
     if (testListSelect.value) {
@@ -363,19 +367,21 @@ function nextWord() {
   if (currentWordIndex >= currentSession.length) {
     alert("You have reached the end of this session.");
     recordDailyProgress();
+    // Reset the session for a new test.
     currentSession = [];
     currentWordIndex = -1;
     return;
   }
   answeredThisWord = false;
   const word = currentSession[currentWordIndex];
+  // Clear previous answer and feedback
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
   const questionDisplay = document.getElementById("question-display");
   questionDisplay.textContent = (mode === "en-to-he") ? word.english : word.hebrewOptions[0];
 }
 
-// When "Check" is clicked, verify the answer and update the corresponding indicator square.
+// "Check" verifies the answer for the current word and updates the corresponding indicator.
 function checkAnswer() {
   if (currentWordIndex < 0 || currentWordIndex >= currentSession.length) {
     alert("Please press 'Next Word' first.");
@@ -406,7 +412,7 @@ function checkAnswer() {
   answeredThisWord = true;
 }
 
-// Record daily progress (number of words answered correctly in this session)
+// Record daily progress (e.g., number of words answered correctly in this session)
 function recordDailyProgress() {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
@@ -423,8 +429,7 @@ function recordDailyProgress() {
   saveDatabase();
 }
 
-// Start a new test by selecting a list from the test selection dropdown.
-// This resets the session and creates new indicator squares based on the new randomized order.
+// "Start Test" resets any previous test session and initializes a new session from the selected list.
 function startTest() {
   const testListSelect = document.getElementById("test-list-select");
   const selectedList = testListSelect.value;
@@ -432,7 +437,16 @@ function startTest() {
     alert("Please select a list to start the test.");
     return;
   }
+  // Reset any previous session state.
+  currentSession = [];
+  currentWordIndex = -1;
+  answeredThisWord = false;
+  document.getElementById("feedback-indicators").innerHTML = "";
+  document.getElementById("answer-input").value = "";
+  document.getElementById("correct-answer-display").textContent = "";
+  // Initialize a new session with the chosen list.
   currentListName = selectedList;
   initializeSession(database.lists[selectedList]);
+  // Set the prompt for the new test.
   document.getElementById("question-display").textContent = "Press 'Next Word' to begin";
 }
