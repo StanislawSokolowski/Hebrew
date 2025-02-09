@@ -22,7 +22,7 @@ h1 {
   margin-bottom: 10px;
 }
 
-.mode-controls, .db-controls {
+.mode-controls, .db-controls, .stats-options {
   margin-bottom: 15px;
 }
 
@@ -34,6 +34,22 @@ label {
   display: block;
   margin-bottom: 5px;
   font-weight: 500;
+}
+
+/* Details (drop-down) styling */
+details {
+  background: #1e1e1e;
+  border: 2px solid #317EFB;
+  border-radius: 4px;
+  margin: 10px 0;
+  padding: 5px;
+}
+details summary {
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #317EFB;
+  outline: none;
 }
 
 /* Hide default file input */
@@ -90,6 +106,13 @@ button {
 button:hover {
   background: #317EFB;
   color: #fff;
+}
+
+/* Overall word count styling */
+.overall-word-count {
+  font-size: 16px;
+  margin-bottom: 10px;
+  font-weight: 500;
 }
 
 /* Flashcard container (vertical layout) */
