@@ -7,14 +7,15 @@ let database = {
 };
 
 let currentListName = ""; // Name of the current list being practiced
-let currentSession = []; // Array of word objects for the current session
+let currentSession = [];  // Array of word objects for the current session
 let currentWordIndex = -1;
-let mode = "en-to-he"; // default mode
+let mode = "en-to-he";    // Default mode
 let answeredThisWord = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   loadDatabase();
   updateListDropdown();
+  updateTestListDropdown();
   addEventListeners();
 
   // Register service worker for PWA
@@ -48,7 +49,7 @@ function saveDatabase() {
   localStorage.setItem("hebrewDatabase", JSON.stringify(database));
 }
 
-// Update the dropdown list of loaded lists (ordered alphabetically)
+// Update the dropdown for DB management (ordered alphabetically)
 function updateListDropdown() {
   const listSelect = document.getElementById("list-select");
   listSelect.innerHTML = '<option value="">--Select List--</option>';
@@ -61,7 +62,20 @@ function updateListDropdown() {
   });
 }
 
-// Add event listeners to all buttons and inputs
+// Update the test selection dropdown (ordered alphabetically)
+function updateTestListDropdown() {
+  const testListSelect = document.getElementById("test-list-select");
+  testListSelect.innerHTML = '<option value="">--Select List--</option>';
+  const listNames = Object.keys(database.lists).sort((a, b) => a.localeCompare(b));
+  listNames.forEach(listName => {
+    const option = document.createElement("option");
+    option.value = listName;
+    option.textContent = listName;
+    testListSelect.appendChild(option);
+  });
+}
+
+// Add event listeners to buttons and inputs
 function addEventListeners() {
   document.getElementById("load-files-btn").addEventListener("click", loadFiles);
   document.getElementById("delete-list-btn").addEventListener("click", deleteList);
@@ -78,6 +92,7 @@ function addEventListeners() {
   document.getElementById("check-answer-btn").addEventListener("click", checkAnswer);
   document.getElementById("next-word-btn").addEventListener("click", nextWord);
   document.getElementById("load-least-known-btn").addEventListener("click", loadLeastKnown);
+  document.getElementById("start-test-btn").addEventListener("click", startTest);
 
   // Dropdown toggle on click
   const dropdowns = document.querySelectorAll('.dropdown');
@@ -85,11 +100,9 @@ function addEventListeners() {
     const button = dropdown.querySelector('.dropbtn');
     button.addEventListener('click', function(e) {
       e.stopPropagation();
-      // Toggle active class for this dropdown
       dropdown.classList.toggle('active');
     });
   });
-
   // Close dropdowns if clicking outside
   document.addEventListener('click', function(e) {
     dropdowns.forEach(dropdown => {
@@ -97,17 +110,6 @@ function addEventListeners() {
         dropdown.classList.remove('active');
       }
     });
-  });
-
-  // For file input label clicks to trigger file selectors
-  const fileInputButton = document.querySelector('label[for="file-input"]');
-  fileInputButton.addEventListener("click", function() {
-    document.getElementById("file-input").click();
-  });
-  
-  const importFileInputButton = document.querySelector('label[for="import-db-input"]');
-  importFileInputButton.addEventListener("click", function() {
-    document.getElementById("import-db-input").click();
   });
 }
 
@@ -125,14 +127,15 @@ function loadFiles() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target.result;
-      // Use file name (without extension) as the list name
+      // Use the file name (without extension) as the list name
       const listName = file.name.replace(/\.[^/.]+$/, "");
       const words = parseDCPFile(content);
       if (words.length) {
         database.lists[listName] = words;
         updateListDropdown();
+        updateTestListDropdown();
         saveDatabase();
-        // If this list is active, clear the indicators
+        // If this list is currently active, reset the indicators
         if (currentListName === listName) {
           populateIndicators(0);
         }
@@ -142,8 +145,7 @@ function loadFiles() {
   });
 }
 
-// Parse a .dcp file (each line: english=hebrew1|hebrew2)
-// Ignores lines that are empty, begin with "HtE" or "@" (end marker)
+// Parse a .dcp file (ignores lines that start with "HtE" or "@" or are empty)
 function parseDCPFile(content) {
   const lines = content.split(/\r?\n/);
   const words = [];
@@ -171,6 +173,7 @@ function deleteList() {
   if (confirm(`Delete the list "${listName}"?`)) {
     delete database.lists[listName];
     updateListDropdown();
+    updateTestListDropdown();
     saveDatabase();
     alert("List deleted.");
   }
@@ -201,6 +204,7 @@ function importDatabase() {
     try {
       database = JSON.parse(event.target.result);
       updateListDropdown();
+      updateTestListDropdown();
       saveDatabase();
       alert("Database imported successfully.");
     } catch (e) {
@@ -211,8 +215,6 @@ function importDatabase() {
 }
 
 // --- Statistics Functions ---
-
-// Show per-word statistics for the selected list
 function showListStats() {
   const listSelect = document.getElementById("list-select");
   const listName = listSelect.value;
@@ -240,7 +242,6 @@ function showListStats() {
   statsDisplay.innerHTML = html;
 }
 
-// Show a 20-bin histogram of correct ratios (actual graph)
 function showHistogram() {
   const statsDisplay = document.getElementById("stats-display");
   const allWords = [];
@@ -262,7 +263,7 @@ function showHistogram() {
   const maxCount = Math.max(...bins);
   let html = "<h3>Histogram of Correct Ratios (20 bins)</h3>";
   html += '<div class="histogram-container">';
-  bins.forEach((count, i) => {
+  bins.forEach((count) => {
     const barHeight = maxCount > 0 ? (count / maxCount * 100) : 0;
     html += `<div class="histogram-bar" style="height: ${barHeight}%;"><span>${count}</span></div>`;
   });
@@ -270,7 +271,6 @@ function showHistogram() {
   statsDisplay.innerHTML = html;
 }
 
-// Show a daily progress graph (simple text-based graph)
 function showDailyProgressGraph() {
   const statsDisplay = document.getElementById("stats-display");
   if (!database.dailyProgress.length) {
@@ -284,7 +284,6 @@ function showDailyProgressGraph() {
   statsDisplay.innerHTML = html;
 }
 
-// Show a daily progress table with lists completed on given dates
 function showDailyProgressTable() {
   const statsDisplay = document.getElementById("stats-display");
   if (!database.dailyProgress.length) {
@@ -305,7 +304,6 @@ function showDailyProgressTable() {
   statsDisplay.innerHTML = html;
 }
 
-// Show database statistics (total words count)
 function showDatabaseStats() {
   const statsDisplay = document.getElementById("stats-display");
   let totalWords = 0;
@@ -319,7 +317,7 @@ function showDatabaseStats() {
 
 // --- Flashcard Practice Functions ---
 
-// Initialize session: randomize words, reset index, pre-populate indicators, update test info.
+// Initialize session: randomize words, reset index, pre-populate indicators, and update test info.
 function initializeSession(wordsArray) {
   currentSession = shuffle([...wordsArray]);
   currentWordIndex = -1;
@@ -331,7 +329,7 @@ function initializeSession(wordsArray) {
   document.getElementById("test-info").textContent = `Words in test: ${currentSession.length}`;
 }
 
-// Fisher-Yates Shuffle
+// Fisher-Yates Shuffle for randomizing words
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -353,14 +351,14 @@ function populateIndicators(count) {
 
 // When "Next Word" is clicked
 function nextWord() {
-  // If no session is active, initialize session from selected list
+  // If no session is active, try to initialize from the test selection dropdown
   if (!currentSession.length) {
-    const listSelect = document.getElementById("list-select");
-    if (listSelect.value) {
-      currentListName = listSelect.value;
+    const testListSelect = document.getElementById("test-list-select");
+    if (testListSelect.value) {
+      currentListName = testListSelect.value;
       initializeSession(database.lists[currentListName]);
     } else {
-      alert("Please select a list (or load the 20 least known words) first.");
+      alert("Please select a list (or use 'Start Test') first.");
       return;
     }
   }
@@ -378,12 +376,11 @@ function nextWord() {
   // Clear answer input and previous correct answer display
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
-  // Display question according to mode
+  // Display question according to selected mode
   const questionDisplay = document.getElementById("question-display");
   if (mode === "en-to-he") {
     questionDisplay.textContent = word.english;
   } else {
-    // If Hebrew-to-English, show the first Hebrew option as prompt.
     questionDisplay.textContent = word.hebrewOptions[0];
   }
 }
@@ -394,20 +391,16 @@ function checkAnswer() {
     alert("Please press 'Next Word' first.");
     return;
   }
-  if (answeredThisWord) return; // prevent double-checking
+  if (answeredThisWord) return; // Prevent double-checking
   const word = currentSession[currentWordIndex];
   const userAnswer = document.getElementById("answer-input").value.trim();
   let isCorrect = false;
   if (mode === "en-to-he") {
-    // Compare user answer to each Hebrew option (exact string match)
-    isCorrect = word.hebrewOptions.some(
-      (option) => option === userAnswer
-    );
+    isCorrect = word.hebrewOptions.some(option => option === userAnswer);
   } else {
-    // Hebrew-to-English: compare against the English word (case-insensitive)
     isCorrect = word.english.toLowerCase() === userAnswer.toLowerCase();
   }
-  // Always show the correct answer (for Hebrew, show with nikkud)
+  // Always display the correct answer (for Hebrew, showing with nikkud if available)
   document.getElementById("correct-answer-display").textContent =
     mode === "en-to-he" ? word.hebrewOptions[0] : word.english;
   // Update the database stats
@@ -432,39 +425,27 @@ function recordDailyProgress() {
   const mm = String(today.getMonth() + 1).padStart(2, "0");
   const yyyy = today.getFullYear();
   const dateStr = `${dd}.${mm}.${yyyy}`;
-  let progress = database.dailyProgress.find((d) => d.date === dateStr);
+  let progress = database.dailyProgress.find(d => d.date === dateStr);
   if (!progress) {
     progress = { date: dateStr, knownCount: 0, listsCompleted: 0 };
     database.dailyProgress.push(progress);
   }
-  // For simplicity, count all words answered in this session as “known”
-  const sessionCorrect = currentSession.filter(
-    (word) => word.stats.correct > 0
-  ).length;
+  // Count all words answered in this session as “known”
+  const sessionCorrect = currentSession.filter(word => word.stats.correct > 0).length;
   progress.knownCount += sessionCorrect;
   saveDatabase();
 }
 
-// Load 20 least known words (across all lists, based on lowest correct ratios)
-function loadLeastKnown() {
-  const allWords = [];
-  for (let list in database.lists) {
-    database.lists[list].forEach((word) => {
-      const attempts = word.stats.correct + word.stats.incorrect;
-      const ratio = attempts ? word.stats.correct / attempts : 0;
-      allWords.push({ ...word, ratio });
-    });
-  }
-  if (allWords.length === 0) {
-    alert("No words available in the database.");
+// Start a new test based on the test selection dropdown
+function startTest() {
+  const testListSelect = document.getElementById("test-list-select");
+  const selectedList = testListSelect.value;
+  if (!selectedList) {
+    alert("Please select a list to start the test.");
     return;
   }
-  // Sort words by ratio ascending (least known first)
-  allWords.sort((a, b) => a.ratio - b.ratio);
-  // Take the 20 least known words
-  currentListName = "20 Least Known Words";
-  initializeSession(allWords.slice(0, 20));
-  alert("20 least known words loaded. Click 'Next Word' to begin.");
-  // Clear previous session feedback if any
+  currentListName = selectedList;
+  initializeSession(database.lists[selectedList]);
+  // Reset question display
   document.getElementById("question-display").textContent = "Press 'Next Word' to begin";
 }

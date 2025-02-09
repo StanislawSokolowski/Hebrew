@@ -26,7 +26,7 @@
             <!-- Custom file input for .dcp files wrapped inside the label -->
             <label class="file-input-button">
               Choose Files
-              <input type="file" id="file-input" multiple accept=".dcp" style="width: 0; height: 0; opacity: 0;" />
+              <input type="file" id="file-input" multiple accept=".dcp" style="width:0; height:0; opacity:0;" />
             </label>
             <button id="load-files-btn">Load Selected Files</button>
           </div>
@@ -44,7 +44,7 @@
             <!-- Custom file input for JSON import wrapped inside the label -->
             <label class="file-input-button">
               Choose Import File
-              <input type="file" id="import-db-input" accept=".json" style="width: 0; height: 0; opacity: 0;" />
+              <input type="file" id="import-db-input" accept=".json" style="width:0; height:0; opacity:0;" />
             </label>
             <button id="import-db-btn">Import Database</button>
           </div>
@@ -77,6 +77,14 @@
           <option value="en-to-he">English to Hebrew</option>
           <option value="he-to-en">Hebrew to English</option>
         </select>
+      </div>
+      <!-- New test selection block -->
+      <div id="test-selection">
+        <label for="test-list-select">Select List for Test:</label>
+        <select id="test-list-select">
+          <option value="">--Select List--</option>
+        </select>
+        <button id="start-test-btn">Start Test</button>
       </div>
       <div id="flashcard">
         <div id="question-display" class="flashcard-question">
