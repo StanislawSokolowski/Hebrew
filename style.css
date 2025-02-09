@@ -10,7 +10,7 @@ body {
 }
 
 .container {
-  max-width: 600px; /* Mobile friendly */
+  max-width: 600px;
   margin: 20px auto;
   padding: 20px;
   background-color: #1e1e1e;
@@ -36,12 +36,12 @@ label {
   font-weight: 500;
 }
 
-/* Hide the default file input */
+/* Hide default file input */
 input[type="file"] {
   display: none;
 }
 
-/* Custom styled file input label */
+/* Custom file input label */
 .custom-file-label {
   background: none;
   border: 2px solid #317EFB;
@@ -60,7 +60,7 @@ input[type="file"] {
   color: #fff;
 }
 
-/* Style for select and input text */
+/* Style select and text inputs */
 select,
 input[type="text"] {
   padding: 10px;
@@ -74,7 +74,7 @@ input[type="text"] {
   color: #e0e0e0;
 }
 
-/* Modern button styling */
+/* Modern, filigree button styling */
 button {
   background: none;
   border: 2px solid #317EFB;
@@ -92,7 +92,7 @@ button:hover {
   color: #fff;
 }
 
-/* Vertical layout for flashcard container */
+/* Flashcard container (vertical layout) */
 .flashcard-container {
   display: flex;
   flex-direction: column;
@@ -151,7 +151,7 @@ input.wrong {
   border-radius: 2px;
 }
 
-/* Modal styles for statistics */
+/* Modal styles */
 .modal {
   display: none;
   position: fixed;
@@ -187,6 +187,7 @@ input.wrong {
   text-decoration: none;
 }
 
+/* Table styling */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -199,7 +200,7 @@ th, td {
   text-align: center;
 }
 
-/* New rule for larger nikkud answer */
+/* Larger nikkud answer styling */
 .nikkud-answer {
   font-size: 36px;
   font-weight: bold;
