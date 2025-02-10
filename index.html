@@ -1,98 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hebrew</title>
-  <!-- Link to the manifest for PWA -->
-  <link rel="manifest" href="manifest.json" />
-  <!-- Link to CSS -->
-  <link rel="stylesheet" href="styles.css" />
-  <!-- Optionally include Chart.js for graphs -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <header>
-    <h1>Hebrew</h1>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hebrew</title>
+    <!-- PWA manifest and theme -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#121212" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header with title and two drop-down menus -->
+      <header>
+        <h1>Hebrew</h1>
+        <nav>
+          <!-- Database management drop-down -->
+          <div class="dropdown" id="db-dropdown">
+            <button class="dropbtn">Database</button>
+            <div class="dropdown-content">
+              <!-- File input and load button -->
+              <input
+                type="file"
+                id="file-input"
+                multiple
+                accept=".dcp"
+                title="Select one or more .dcp files"
+              />
+              <button id="load-files">Load Files</button>
+              <!-- Choose list -->
+              <label for="list-select">Choose List:</label>
+              <select id="list-select">
+                <option value="">-- No List Loaded --</option>
+              </select>
+              <button id="delete-list">Delete List</button>
+              <!-- Export/Import database -->
+              <button id="export-db">Export Database</button>
+              <input
+                type="file"
+                id="import-db-input"
+                accept=".json"
+                style="display:none"
+              />
+              <button id="import-db">Import Database</button>
+            </div>
+          </div>
+          <!-- Statistics drop-down -->
+          <div class="dropdown" id="stats-dropdown">
+            <button class="dropbtn">Statistics</button>
+            <div class="dropdown-content">
+              <button id="show-word-stats">Word Statistics (List)</button>
+              <button id="show-histogram">Ratio Histogram</button>
+              <div id="total-words-container">
+                Total Words in Database:
+                <span id="total-words">0</span>
+              </div>
+              <div id="daily-progress">
+                <h3>Daily Progress</h3>
+                <canvas id="daily-progress-canvas" width="300" height="150"></canvas>
+                <table id="daily-progress-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Lists Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </header>
 
-  <!-- Database Management Dropdown -->
-  <nav id="dbMenu" class="dropdown">
-    <button class="dropbtn">Database Management</button>
-    <div class="dropdown-content">
-      <!-- File load -->
-      <label for="fileInput" class="button">Load .dcp Files</label>
-      <input type="file" id="fileInput" accept=".dcp" multiple style="display:none;" />
-      <!-- List selector (populated dynamically) -->
-      <select id="listSelector">
-        <option value="">-- Choose a List --</option>
-      </select>
-      <!-- Delete database button -->
-      <button id="deleteDbBtn" class="button">Delete Database</button>
-      <!-- Export / Import -->
-      <button id="exportDbBtn" class="button">Export Database</button>
-      <label for="importDbInput" class="button">Import Database</label>
-      <input type="file" id="importDbInput" accept=".json" style="display:none;" />
+      <!-- Main flashcard section -->
+      <main>
+        <section id="flashcard-section">
+          <!-- Mode selector -->
+          <div id="mode-select">
+            <label>
+              <input type="radio" name="mode" value="eng-to-heb" checked />
+              English → Hebrew
+            </label>
+            <label>
+              <input type="radio" name="mode" value="heb-to-eng" />
+              Hebrew → English
+            </label>
+          </div>
+          <!-- Flashcard display -->
+          <div id="flashcard">
+            <div id="word-display" class="word"></div>
+            <input
+              type="text"
+              id="answer-input"
+              placeholder="Type your answer here..."
+            />
+            <button id="check-answer">Check</button>
+            <!-- Correct answer is shown above the input -->
+            <div id="correct-answer-display"></div>
+            <button id="next-word">Next Word</button>
+          </div>
+          <!-- Indicator squares and word count -->
+          <div id="indicator-container">
+            <div id="indicators"></div>
+            <div id="word-count">Words: 0</div>
+          </div>
+          <!-- Load 20 least known words -->
+          <button id="load-weak-words">Load 20 Least Known Words</button>
+        </section>
+      </main>
     </div>
-  </nav>
 
-  <!-- Statistics Dropdown -->
-  <nav id="statsMenu" class="dropdown">
-    <button class="dropbtn">Statistics</button>
-    <div class="dropdown-content">
-      <button id="listStatsBtn" class="button">Show List Statistics</button>
-      <button id="histogramBtn" class="button">Show Ratio Histogram</button>
-      <div class="graph-container">
-        <canvas id="histogramChart"></canvas>
-      </div>
-      <button id="dailyProgressGraphBtn" class="button">Daily Progress Graph</button>
-      <div class="graph-container">
-        <canvas id="dailyProgressChart"></canvas>
-      </div>
-      <button id="dailyProgressTableBtn" class="button">Daily Progress Table</button>
-      <div id="dailyProgressTable"></div>
-      <!-- Show overall word count -->
-      <div id="wordCountDisplay"></div>
-    </div>
-  </nav>
-
-  <!-- Main Flashcard Interface -->
-  <main>
-    <!-- Mode Selection -->
-    <div id="modeSelector" class="centered">
-      <label>
-        <input type="radio" name="mode" value="eng2heb" checked>
-        English → Hebrew
-      </label>
-      <label>
-        <input type="radio" name="mode" value="heb2eng">
-        Hebrew → English
-      </label>
-    </div>
-
-    <!-- Flashcard test area -->
-    <section id="flashcardSection" class="centered">
-      <div id="testInfo">Words in test: <span id="wordsInTestCount">0</span></div>
-      <div id="questionDisplay" class="question"></div>
-      <!-- The answer input and check button -->
-      <div id="answerArea">
-        <!-- Correct answer will be displayed here after check -->
-        <div id="correctAnswer" class="correct-answer"></div>
-        <input type="text" id="answerInput" placeholder="Type your answer here" autocomplete="off" />
-        <button id="checkBtn" class="button">Check</button>
-      </div>
-      <button id="nextWordBtn" class="button">Next Word</button>
-      <!-- Indicators for answered words -->
-      <div id="indicatorArea" class="indicator-area"></div>
-    </section>
-
-    <!-- Button to load 20 least known words -->
-    <section class="centered">
-      <button id="leastKnownBtn" class="button">Load 20 Least Known Words</button>
-    </section>
-  </main>
-
-  <!-- Service worker registration and app JS -->
-  <script src="app.js"></script>
-</body>
+    <!-- Include our app JavaScript -->
+    <script src="app.js"></script>
+    <script>
+      // Register the service worker for offline support.
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("service-worker.js").catch((err) =>
+          console.error("Service Worker registration failed:", err)
+        );
+      }
+    </script>
+  </body>
 </html>
