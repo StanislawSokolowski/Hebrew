@@ -1,31 +1,26 @@
 /* 
   Hebrew Flashcards App
   ---------------------
-  This script handles:
-    • Parsing .dcp files (ignoring any "HtE" header and ending at "@")
-    • Storing lists and word statistics in localStorage
-    • Managing the flashcard session (mode selection, checking answers,
-      randomizing words, and updating on-screen indicators)
-    • Database import/export and deletion of lists
-    • Displaying statistics (word stats, ratio histogram, daily progress)
+  (Database, file parsing, import/export, and statistics code remains unchanged.)
 */
 
 // Global “database” object to hold lists and daily progress.
-// Structure example:
-// {
-//   lists: { listID: { name, words: [{question, answers, stats: {correct, incorrect}}] } },
-//   dailyProgress: [{ date: 'dd.mm.yyyy', listsCompleted: N }]
-// }
 let database = JSON.parse(localStorage.getItem("hebrewDB")) || {
   lists: {},
   dailyProgress: []
 };
 
-// For the current flashcard session:
+// -------------------------
+// NEW SESSION MANAGEMENT
+// -------------------------
+// Instead of shuffling the list, we keep the words in the original order
+// (for the indicators) and choose the next word randomly among those that
+// are still “not mastered” (i.e. not marked green).
 let currentListID = null;
-let currentWords = []; // randomized order
-let currentWordIndex = 0;
-let mode = "eng-to-heb"; // default
+let currentList = [];         // The words from the chosen list (in list order)
+let sessionStatus = [];       // For each word, "default" (white), "red", or "green"
+let currentWordIndex = null;  // The index (in currentList) of the word currently being attempted
+let mode = "eng-to-heb";      // default flashcard mode
 
 // ----- Utility functions for persistence -----
 function saveDatabase() {
@@ -40,7 +35,9 @@ function updateTotalWordsDisplay() {
   document.getElementById("total-words").textContent = totalWords;
 }
 
-// ----- File Parsing and Database Management -----
+// -------------------------
+// File Parsing and Database Management (unchanged)
+// -------------------------
 function parseDCP(text) {
   const lines = text.split(/\r?\n/);
   const words = [];
@@ -50,7 +47,7 @@ function parseDCP(text) {
     if (line === "HtE") continue;
     if (line === "@") break;
     if (!line) continue;
-    // Expect format: question=answer1|answer2|...
+    // Expected format: question=answer1|answer2|...
     const parts = line.split("=");
     if (parts.length !== 2) continue;
     const question = parts[0].trim();
@@ -65,15 +62,13 @@ function parseDCP(text) {
 }
 
 function loadFiles(files) {
-  // Process each file
   Array.from(files).forEach((file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target.result;
       const words = parseDCP(text);
-      // Use the file name (without extension) as list name, ordering out any HtE.
+      // Use file name (without extension) as list name.
       const listName = file.name.replace(/\.dcp$/i, "");
-      // Use a timestamp as a unique list ID.
       const listID = Date.now() + "-" + Math.random();
       database.lists[listID] = {
         name: listName,
@@ -90,7 +85,6 @@ function loadFiles(files) {
 
 function updateListSelect() {
   const select = document.getElementById("list-select");
-  // Clear previous options
   select.innerHTML = "";
   // Order lists alphabetically by name:
   const listsArr = Object.entries(database.lists).sort((a, b) =>
@@ -111,122 +105,121 @@ function deleteCurrentList() {
   saveDatabase();
   updateListSelect();
   updateTotalWordsDisplay();
-  // Clear current session if needed
+  // Clear current session
   currentListID = null;
-  currentWords = [];
-  currentWordIndex = 0;
+  currentList = [];
+  sessionStatus = [];
+  currentWordIndex = null;
   document.getElementById("word-display").textContent = "";
   document.getElementById("indicators").innerHTML = "";
 }
 
-// ----- Flashcard Session Management -----
+// -------------------------
+// NEW Session Functions
+// -------------------------
+
+// Start a session using the original list order.
 function startSession(listID, wordsArray) {
   currentListID = listID;
-  // Shuffle the words (simple Fisher-Yates)
-  currentWords = [...wordsArray];
-  for (let i = currentWords.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [currentWords[i], currentWords[j]] = [currentWords[j], currentWords[i]];
-  }
-  currentWordIndex = 0;
-  // Build indicators: one square per word.
+  currentList = wordsArray; // Keep the order as provided (the order in the file)
+  sessionStatus = new Array(wordsArray.length).fill("default"); // All indicators white initially
+  
+  // Build the indicator squares in the order of the list.
   const indicators = document.getElementById("indicators");
   indicators.innerHTML = "";
-  currentWords.forEach(() => {
+  currentList.forEach((word, idx) => {
     const sq = document.createElement("div");
     sq.className = "indicator";
+    // Save the index as a data attribute so we can update it later.
+    sq.dataset.index = idx;
+    sq.style.backgroundColor = "white";
     indicators.appendChild(sq);
   });
   updateWordCountDisplay();
+  chooseNextWord();
+}
+
+// Choose randomly from words that have not yet been answered correctly.
+function chooseNextWord() {
+  const availableIndices = [];
+  for (let i = 0; i < sessionStatus.length; i++) {
+    if (sessionStatus[i] !== "green") {
+      availableIndices.push(i);
+    }
+  }
+  if (availableIndices.length === 0) {
+    recordDailyProgress();
+    alert("Session complete!");
+    return;
+  }
+  currentWordIndex =
+    availableIndices[Math.floor(Math.random() * availableIndices.length)];
   displayCurrentWord();
 }
 
-function updateWordCountDisplay() {
-  document.getElementById("word-count").textContent =
-    "Words: " + currentWords.length;
-}
-
+// Show the current word according to the mode.
 function displayCurrentWord() {
-  const wordObj = currentWords[currentWordIndex];
+  const wordObj = currentList[currentWordIndex];
   const display = document.getElementById("word-display");
-  // Depending on mode, display the “question” or one of the answers.
   if (mode === "eng-to-heb") {
     display.textContent = wordObj.question;
   } else {
-    // For Hebrew-to-English, display first answer (assumes that is the main answer)
+    // For Hebrew-to-English, display the first answer (assumed to be the main one)
     display.textContent = wordObj.answers[0];
   }
-  // Clear answer input and the correct answer display
   document.getElementById("answer-input").value = "";
   document.getElementById("correct-answer-display").textContent = "";
 }
 
+// Update the counter to show how many words remain unmastered.
+function updateWordCountDisplay() {
+  const remaining = sessionStatus.filter((s) => s !== "green").length;
+  document.getElementById("word-count").textContent =
+    "Remaining Words: " + remaining + " / " + currentList.length;
+}
+
+// When the user checks an answer, update the indicator and database stats.
 function checkAnswer() {
   const input = document.getElementById("answer-input").value.trim();
-  const wordObj = currentWords[currentWordIndex];
-  // Determine which field is expected based on mode
+  const wordObj = currentList[currentWordIndex];
   let correctAnswers;
   if (mode === "eng-to-heb") {
     correctAnswers = wordObj.answers;
   } else {
     correctAnswers = [wordObj.question];
   }
-  // Simple case-insensitive check
   const isCorrect = correctAnswers.some(
     (ans) => ans.toLowerCase() === input.toLowerCase()
   );
-  // Always show the correct answer (first acceptable answer, with nikkud if available)
+  // Always show the correct answer (the first acceptable one) above the input.
   document.getElementById("correct-answer-display").textContent =
     correctAnswers[0];
-  // Update indicator for this word
-  const indicator = document.getElementById("indicators").children[
-    currentWordIndex
-  ];
+  
+  // Update the session state and the corresponding indicator:
+  const indicator = document
+    .getElementById("indicators")
+    .querySelector(`[data-index="${currentWordIndex}"]`);
   if (isCorrect) {
+    sessionStatus[currentWordIndex] = "green";
     indicator.style.backgroundColor = "limegreen";
     wordObj.stats.correct++;
   } else {
+    sessionStatus[currentWordIndex] = "red";
     indicator.style.backgroundColor = "red";
     wordObj.stats.incorrect++;
   }
-  // Save stats in the database:
-  // (Assuming that the word objects in currentWords are references into database.lists)
   saveDatabase();
+  updateWordCountDisplay();
 }
 
+// Next word: choose a new word randomly (only from default/red ones).
 function nextWord() {
-  // Advance to next word in session. Wrap around if at the end.
-  currentWordIndex++;
-  if (currentWordIndex >= currentWords.length) {
-    // Optionally record that this list has been “completed”
-    recordDailyProgress();
-    alert("Session complete!");
-    currentWordIndex = 0; // restart the session if desired
-  }
-  displayCurrentWord();
+  chooseNextWord();
 }
 
-function recordDailyProgress() {
-  // Record that a list was fully completed today.
-  const today = new Date();
-  const dateStr =
-    ("0" + today.getDate()).slice(-2) +
-    "." +
-    ("0" + (today.getMonth() + 1)).slice(-2) +
-    "." +
-    today.getFullYear();
-  const existing = database.dailyProgress.find((entry) => entry.date === dateStr);
-  if (existing) {
-    existing.listsCompleted++;
-  } else {
-    database.dailyProgress.push({ date: dateStr, listsCompleted: 1 });
-  }
-  saveDatabase();
-  updateDailyProgressDisplay();
-}
-
-// ----- “20 Least Known Words” Loader -----
-// Here we compute a “known ratio” for each word and pick the 20 with lowest ratio.
+// -------------------------
+// “20 Least Known Words” Loader (unchanged logic)
+// -------------------------
 function loadWeakWords() {
   const allWords = [];
   Object.values(database.lists).forEach((list) => {
@@ -241,14 +234,14 @@ function loadWeakWords() {
   });
   // Sort by ratio ascending and take 20
   const weakest = allWords.sort((a, b) => a.ratio - b.ratio).slice(0, 20);
-  // Start a session with these words (using a dummy list ID)
+  // Start a session with these words (the indicators will be in the order of this list)
   startSession("weak-words", weakest);
 }
 
-// ----- Statistics Display -----
-// (For brevity these functions are simplified.)
+// -------------------------
+// Statistics Display (unchanged)
+// -------------------------
 function showWordStats() {
-  // For the currently selected list, show each word’s stats in an alert
   const select = document.getElementById("list-select");
   const listID = select.value;
   if (!listID) {
@@ -266,7 +259,6 @@ function showWordStats() {
 }
 
 function showHistogram() {
-  // Create a simple histogram (n=20 bins) of ratios over all words.
   const allWords = [];
   Object.values(database.lists).forEach((list) => {
     list.words.forEach((w) => {
@@ -277,11 +269,9 @@ function showHistogram() {
   });
   const bins = new Array(20).fill(0);
   allWords.forEach((ratio) => {
-    // Ratio in [0,1] so multiply by 19 and floor for index (0-19)
     const idx = Math.min(19, Math.floor(ratio * 20));
     bins[idx]++;
   });
-  // For simplicity, show the bins in an alert.
   let histo = "Ratio Histogram (bins):\n";
   bins.forEach((count, i) => {
     histo += `[${(i / 20).toFixed(2)}-${((i + 1) / 20).toFixed(2)}]: ${count}\n`;
@@ -289,21 +279,17 @@ function showHistogram() {
   alert(histo);
 }
 
-// Draw the daily progress graph in the canvas
 function updateDailyProgressDisplay() {
   const canvas = document.getElementById("daily-progress-canvas");
   if (!canvas.getContext) return;
   const ctx = canvas.getContext("2d");
-  // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Sort progress by date (assuming dd.mm.yyyy)
   const progress = database.dailyProgress.sort((a, b) => {
     const [d1, m1, y1] = a.date.split(".").map(Number);
     const [d2, m2, y2] = b.date.split(".").map(Number);
     return new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2);
   });
   if (progress.length === 0) return;
-  // Draw a simple line graph
   const padding = 20;
   const width = canvas.width - 2 * padding;
   const height = canvas.height - 2 * padding;
@@ -325,7 +311,7 @@ function updateDailyProgressDisplay() {
   ctx.strokeStyle = "limegreen";
   ctx.lineWidth = 2;
   ctx.stroke();
-  // Also update the daily progress table.
+  
   const tbody = document.querySelector("#daily-progress-table tbody");
   tbody.innerHTML = "";
   progress.forEach((p) => {
@@ -339,7 +325,27 @@ function updateDailyProgressDisplay() {
   });
 }
 
-// ----- Event Listeners & UI wiring -----
+function recordDailyProgress() {
+  const today = new Date();
+  const dateStr =
+    ("0" + today.getDate()).slice(-2) +
+    "." +
+    ("0" + (today.getMonth() + 1)).slice(-2) +
+    "." +
+    today.getFullYear();
+  const existing = database.dailyProgress.find((entry) => entry.date === dateStr);
+  if (existing) {
+    existing.listsCompleted++;
+  } else {
+    database.dailyProgress.push({ date: dateStr, listsCompleted: 1 });
+  }
+  saveDatabase();
+  updateDailyProgressDisplay();
+}
+
+// -------------------------
+// Event Listeners & UI Wiring
+// -------------------------
 
 document.getElementById("load-files").addEventListener("click", () => {
   const files = document.getElementById("file-input").files;
@@ -350,7 +356,6 @@ document.getElementById("load-files").addEventListener("click", () => {
   loadFiles(files);
 });
 
-// When a list is chosen, start a session with that list.
 document.getElementById("list-select").addEventListener("change", (e) => {
   const listID = e.target.value;
   if (listID && database.lists[listID]) {
@@ -404,31 +409,26 @@ document.getElementById("show-histogram").addEventListener("click", () => {
   showHistogram();
 });
 
-// Mode selection change
 document.querySelectorAll("input[name='mode']").forEach((el) => {
   el.addEventListener("change", (e) => {
     mode = e.target.value;
-    // When the mode changes, update the displayed word.
     displayCurrentWord();
   });
 });
 
-// Check answer button
 document.getElementById("check-answer").addEventListener("click", () => {
   checkAnswer();
 });
 
-// Next word button
 document.getElementById("next-word").addEventListener("click", () => {
   nextWord();
 });
 
-// Load 20 least known words
 document.getElementById("load-weak-words").addEventListener("click", () => {
   loadWeakWords();
 });
 
-// Close any open dropdown if user clicks outside.
+// Close dropdowns when clicking outside.
 document.addEventListener("click", function (e) {
   document.querySelectorAll(".dropdown-content").forEach((drop) => {
     if (!drop.contains(e.target) && !drop.previousElementSibling.contains(e.target)) {
@@ -436,7 +436,6 @@ document.addEventListener("click", function (e) {
     }
   });
 });
-// Re-show dropdown on hover (this makes them easier to use on mobile)
 document.querySelectorAll(".dropdown").forEach((drop) => {
   drop.addEventListener("mouseenter", () => {
     drop.querySelector(".dropdown-content").style.display = "block";
