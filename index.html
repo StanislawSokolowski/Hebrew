@@ -3,95 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hebrew Flashcards</title>
-  <!-- Link to the PWA manifest -->
-  <link rel="manifest" href="manifest.json">
-  <!-- Link to the favicon using your 192px icon -->
-  <link rel="icon" href="icons/icon-192.png" type="image/png">
-  <link rel="stylesheet" href="style.css" />
+  <title>Hebrew</title>
+  <!-- Link to the manifest for PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <!-- Link to CSS -->
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Optionally include Chart.js for graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <header>
     <h1>Hebrew</h1>
   </header>
 
+  <!-- Database Management Dropdown -->
+  <nav id="dbMenu" class="dropdown">
+    <button class="dropbtn">Database Management</button>
+    <div class="dropdown-content">
+      <!-- File load -->
+      <label for="fileInput" class="button">Load .dcp Files</label>
+      <input type="file" id="fileInput" accept=".dcp" multiple style="display:none;" />
+      <!-- List selector (populated dynamically) -->
+      <select id="listSelector">
+        <option value="">-- Choose a List --</option>
+      </select>
+      <!-- Delete database button -->
+      <button id="deleteDbBtn" class="button">Delete Database</button>
+      <!-- Export / Import -->
+      <button id="exportDbBtn" class="button">Export Database</button>
+      <label for="importDbInput" class="button">Import Database</label>
+      <input type="file" id="importDbInput" accept=".json" style="display:none;" />
+    </div>
+  </nav>
+
+  <!-- Statistics Dropdown -->
+  <nav id="statsMenu" class="dropdown">
+    <button class="dropbtn">Statistics</button>
+    <div class="dropdown-content">
+      <button id="listStatsBtn" class="button">Show List Statistics</button>
+      <button id="histogramBtn" class="button">Show Ratio Histogram</button>
+      <div class="graph-container">
+        <canvas id="histogramChart"></canvas>
+      </div>
+      <button id="dailyProgressGraphBtn" class="button">Daily Progress Graph</button>
+      <div class="graph-container">
+        <canvas id="dailyProgressChart"></canvas>
+      </div>
+      <button id="dailyProgressTableBtn" class="button">Daily Progress Table</button>
+      <div id="dailyProgressTable"></div>
+      <!-- Show overall word count -->
+      <div id="wordCountDisplay"></div>
+    </div>
+  </nav>
+
+  <!-- Main Flashcard Interface -->
   <main>
-    <!-- Database Management Section -->
-    <section id="db-management">
-      <h2>Database Management</h2>
-      <div class="dropdown">
-        <button class="dropbtn">Manage Database</button>
-        <div class="dropdown-content">
-          <div>
-            <input type="file" id="file-input" multiple accept=".dcp" />
-            <button id="load-files-btn">Load Selected Files</button>
-          </div>
-          <hr />
-          <div>
-            <label for="list-select">Choose List:</label>
-            <select id="list-select">
-              <option value="">--Select List--</option>
-            </select>
-            <button id="delete-list-btn">Delete List</button>
-          </div>
-          <hr />
-          <div>
-            <button id="export-db-btn">Export Database</button>
-            <input type="file" id="import-db-input" accept=".json" />
-            <button id="import-db-btn">Import Database</button>
-          </div>
-        </div>
+    <!-- Mode Selection -->
+    <div id="modeSelector" class="centered">
+      <label>
+        <input type="radio" name="mode" value="eng2heb" checked>
+        English → Hebrew
+      </label>
+      <label>
+        <input type="radio" name="mode" value="heb2eng">
+        Hebrew → English
+      </label>
+    </div>
+
+    <!-- Flashcard test area -->
+    <section id="flashcardSection" class="centered">
+      <div id="testInfo">Words in test: <span id="wordsInTestCount">0</span></div>
+      <div id="questionDisplay" class="question"></div>
+      <!-- The answer input and check button -->
+      <div id="answerArea">
+        <!-- Correct answer will be displayed here after check -->
+        <div id="correctAnswer" class="correct-answer"></div>
+        <input type="text" id="answerInput" placeholder="Type your answer here" autocomplete="off" />
+        <button id="checkBtn" class="button">Check</button>
       </div>
+      <button id="nextWordBtn" class="button">Next Word</button>
+      <!-- Indicators for answered words -->
+      <div id="indicatorArea" class="indicator-area"></div>
     </section>
 
-    <!-- Statistics Section -->
-    <section id="statistics">
-      <h2>Statistics</h2>
-      <div class="dropdown">
-        <button class="dropbtn">Statistics Options</button>
-        <div class="dropdown-content">
-          <button id="show-db-stats-btn">Show Database Stats</button>
-          <button id="show-list-stats-btn">Show List Statistics</button>
-          <button id="show-histogram-btn">Show Ratio Histogram (20 bins)</button>
-          <button id="show-daily-progress-graph-btn">Show Daily Progress Graph</button>
-          <button id="show-daily-progress-table-btn">Show Daily Progress Table</button>
-        </div>
-      </div>
-      <div id="stats-display"></div>
-    </section>
-
-    <!-- Flashcard Practice Section -->
-    <section id="practice">
-      <h2>Practice Mode</h2>
-      <div id="mode-selection">
-        <label>Select Mode:</label>
-        <select id="mode-select">
-          <option value="en-to-he">English to Hebrew</option>
-          <option value="he-to-en">Hebrew to English</option>
-        </select>
-      </div>
-      <div id="flashcard">
-        <div id="question-display" class="flashcard-question">
-          Press "Next Word" to begin
-        </div>
-        <div id="correct-answer-display" class="flashcard-answer"></div>
-        <input type="text" id="answer-input" placeholder="Type your answer here" />
-        <div class="flashcard-buttons">
-          <button id="check-answer-btn">Check</button>
-          <button id="next-word-btn">Next Word</button>
-        </div>
-        <div id="feedback-indicators" class="indicators"></div>
-      </div>
-      <!-- Display the number of words in the test -->
-      <p id="test-info"></p>
-      <button id="load-least-known-btn">Load 20 Least Known Words</button>
+    <!-- Button to load 20 least known words -->
+    <section class="centered">
+      <button id="leastKnownBtn" class="button">Load 20 Least Known Words</button>
     </section>
   </main>
 
-  <footer>
-    <p>&copy; 2025 Hebrew Flashcards</p>
-  </footer>
-
-  <script src="script.js"></script>
+  <!-- Service worker registration and app JS -->
+  <script src="app.js"></script>
 </body>
 </html>
