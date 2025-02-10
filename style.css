@@ -54,55 +54,25 @@ section {
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-size: 1rem;
+  margin-bottom: 1rem;
 }
 
+/* Hide dropdown content by default */
 .dropdown-content {
-  display: none; /* Hidden by default */
+  display: none;
   position: absolute;
   background-color: var(--button-bg);
   min-width: 250px;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
   padding: 1rem;
   z-index: 1;
   border-radius: 5px;
 }
 
-/* When the dropdown-content has the class "show", display it */
-.dropdown-content.show {
+/* Show dropdown content when .active class is applied */
+.dropdown.active .dropdown-content {
   display: block;
-}
-
-.dropdown-content button,
-.dropdown-content label {
-  display: block;
-  margin: 0.5rem 0;
-}
-
-.dropdown-content hr {
-  margin: 0.5rem 0;
-  border: 1px solid #333;
-}
-
-/* File input button styling */
-.file-input-button {
-  background-color: var(--button-bg);
-  color: var(--button-text);
-  padding: 0.5rem 1rem;
-  border-radius: 5px;
-  cursor: pointer;
-  display: inline-block;
-}
-
-.file-input-button:hover,
-.dropbtn:hover,
-button:hover {
-  background-color: var(--accent-color);
-  color: #000;
-}
-
-/* Hide the file input element inside the label */
-.file-input-button input[type="file"] {
-  display: none;
 }
 
 input[type="text"],
@@ -123,6 +93,11 @@ button {
   border-radius: 5px;
   cursor: pointer;
   margin: 0.5rem;
+}
+
+button:hover {
+  background-color: var(--accent-color);
+  color: #000;
 }
 
 /* Flashcard area */
@@ -165,36 +140,10 @@ button {
   background-color: #fff;
 }
 
-/* Histogram styling */
-.histogram-container {
-  display: flex;
-  align-items: flex-end;
-  height: 200px;
-  margin: 1rem auto;
-  width: 90%;
-  max-width: 600px;
-}
-.histogram-bar {
-  flex: 1;
-  margin: 0 2px;
-  background-color: var(--accent-color);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  color: #000;
-}
-.histogram-bar span {
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
-  font-size: 0.7rem;
-  padding: 2px;
-}
-
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .dropbtn,
-  button,
-  .file-input-button {
+  button {
     width: 90%;
     font-size: 1.1rem;
   }
