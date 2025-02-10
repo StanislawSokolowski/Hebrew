@@ -1,0 +1,167 @@
+/* Global dark mode styling */
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: #121212;
+  color: #e0e0e0;
+  line-height: 1.6;
+}
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 10px;
+}
+/* Header and navigation */
+header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+header h1 {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+nav {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  position: relative;
+}
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+.dropbtn {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  padding: 10px 20px;
+  font-size: 1em;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #2c2c2c;
+  min-width: 220px;
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 1;
+}
+.dropdown-content input,
+.dropdown-content select,
+.dropdown-content button {
+  width: 100%;
+  margin: 5px 0;
+  padding: 8px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+.dropdown-content button {
+  cursor: pointer;
+}
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+/* Main flashcard section */
+#flashcard-section {
+  background: #1e1e1e;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+#mode-select {
+  margin-bottom: 15px;
+}
+#mode-select label {
+  margin-right: 15px;
+  cursor: pointer;
+}
+#flashcard {
+  margin-bottom: 15px;
+}
+.word {
+  font-size: 2em;
+  margin-bottom: 10px;
+}
+#answer-input {
+  width: 80%;
+  padding: 10px;
+  font-size: 1em;
+  border: 2px solid #444;
+  border-radius: 5px;
+  background: #2c2c2c;
+  color: #e0e0e0;
+  margin-bottom: 10px;
+}
+#check-answer, #next-word, #load-weak-words {
+  padding: 10px 20px;
+  font-size: 1em;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  background-color: #3a8ee6;
+  color: #fff;
+  cursor: pointer;
+}
+#check-answer:hover,
+#next-word:hover,
+#load-weak-words:hover {
+  background-color: #337acc;
+}
+#correct-answer-display {
+  font-size: 1.5em;
+  color: limegreen;
+  margin: 10px 0;
+}
+
+/* Indicators */
+#indicator-container {
+  margin-top: 15px;
+}
+#indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.indicator {
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #444;
+}
+
+/* Daily progress table */
+#daily-progress table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+#daily-progress th,
+#daily-progress td {
+  border: 1px solid #444;
+  padding: 5px;
+  text-align: center;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  header h1 {
+    font-size: 2em;
+  }
+  .dropbtn {
+    font-size: 0.9em;
+  }
+}
