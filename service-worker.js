@@ -1,25 +1,45 @@
-const CACHE_NAME = 'hebrew-flashcards-cache-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './style.css',
-  './script.js',
-  './manifest.json'
+const CACHE_NAME = 'hebrew-cache-v1';
+const FILES_TO_CACHE = [
+  'index.html',
+  'styles.css',
+  'app.js',
+  'manifest.json',
+  // Include icons and any other assets you want to cache:
+  'icons/icon-192.png',
+  'icons/icon-512.png'
 ];
 
-self.addEventListener('install', function (event) {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function (cache) {
-      console.log('Opened cache');
-      return cache.addAll(urlsToCache);
+self.addEventListener('install', (evt) => {
+  console.log('[ServiceWorker] Install');
+  evt.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[ServiceWorker] Pre-caching offline page');
+      return cache.addAll(FILES_TO_CACHE);
     })
   );
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', function (event) {
-  event.respondWith(
-    caches.match(event.request).then(function (response) {
-      return response || fetch(event.request);
+self.addEventListener('activate', (evt) => {
+  console.log('[ServiceWorker] Activate');
+  evt.waitUntil(
+    caches.keys().then((keyList) => {
+      return Promise.all(keyList.map((key) => {
+        if (key !== CACHE_NAME) {
+          console.log('[ServiceWorker] Removing old cache', key);
+          return caches.delete(key);
+        }
+      }));
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (evt) => {
+  // Serve cached content when offline.
+  evt.respondWith(
+    caches.match(evt.request).then((response) => {
+      return response || fetch(evt.request);
     })
   );
 });
