@@ -142,6 +142,9 @@ nav {
   border-radius: 4px;
   border: 1px solid #444;
 }
+.indicator.last-changed {
+  border: 2px solid yellow;  /* Adjust the color/thickness as desired */
+}
 
 /* Daily progress table */
 #daily-progress table {
