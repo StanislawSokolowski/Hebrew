@@ -1,26 +1,35 @@
 /* 
   Hebrew Flashcards App
   ---------------------
-  (Database, file parsing, import/export, and statistics code remains unchanged.)
+  This script handles:
+    • Parsing .dcp files (ignoring an optional "HtE" header and stopping at "@")
+    • Storing lists and per‐word statistics in localStorage
+    • Managing the flashcard session with random selection among words
+      that are not yet mastered (i.e. not marked green)
+    • Exporting/importing the database and displaying statistics
 */
 
 // Global “database” object to hold lists and daily progress.
+// Structure example:
+// {
+//   lists: { listID: { name, words: [{question, answers, stats: {correct, incorrect}}] } },
+//   dailyProgress: [{ date: 'dd.mm.yyyy', listsCompleted: N }]
+// }
 let database = JSON.parse(localStorage.getItem("hebrewDB")) || {
   lists: {},
   dailyProgress: []
 };
 
 // -------------------------
-// NEW SESSION MANAGEMENT
+// SESSION MANAGEMENT VARIABLES
 // -------------------------
-// Instead of shuffling the list, we keep the words in the original order
-// (for the indicators) and choose the next word randomly among those that
-// are still “not mastered” (i.e. not marked green).
+// We keep words in the order of the list (for the indicators)
+// and choose the next word randomly among those not yet mastered.
 let currentListID = null;
 let currentList = [];         // The words from the chosen list (in list order)
 let sessionStatus = [];       // For each word, "default" (white), "red", or "green"
 let currentWordIndex = null;  // The index (in currentList) of the word currently being attempted
-let mode = "eng-to-heb";      // default flashcard mode
+let mode = "eng-to-heb";      // Default flashcard mode
 
 // ----- Utility functions for persistence -----
 function saveDatabase() {
@@ -36,14 +45,14 @@ function updateTotalWordsDisplay() {
 }
 
 // -------------------------
-// File Parsing and Database Management (unchanged)
+// FILE PARSING and Database Management
 // -------------------------
 function parseDCP(text) {
   const lines = text.split(/\r?\n/);
   const words = [];
   for (let line of lines) {
     line = line.trim();
-    // Skip header if it starts with "HtE"
+    // Skip header if it equals "HtE"
     if (line === "HtE") continue;
     if (line === "@") break;
     if (!line) continue;
@@ -105,7 +114,7 @@ function deleteCurrentList() {
   saveDatabase();
   updateListSelect();
   updateTotalWordsDisplay();
-  // Clear current session
+  // Clear current session if needed
   currentListID = null;
   currentList = [];
   sessionStatus = [];
@@ -115,7 +124,7 @@ function deleteCurrentList() {
 }
 
 // -------------------------
-// NEW Session Functions
+// SESSION FUNCTIONS
 // -------------------------
 
 // Start a session using the original list order.
@@ -139,7 +148,7 @@ function startSession(listID, wordsArray) {
   chooseNextWord();
 }
 
-// Choose randomly from words that have not yet been answered correctly.
+// Choose randomly from words that have not yet been mastered (state !== "green").
 function chooseNextWord() {
   const availableIndices = [];
   for (let i = 0; i < sessionStatus.length; i++) {
@@ -178,7 +187,7 @@ function updateWordCountDisplay() {
     "Remaining Words: " + remaining + " / " + currentList.length;
 }
 
-// When the user checks an answer, update the indicator and database stats.
+// Check answer: update state based on current sessionStatus for the word.
 function checkAnswer() {
   const input = document.getElementById("answer-input").value.trim();
   const wordObj = currentList[currentWordIndex];
@@ -191,34 +200,70 @@ function checkAnswer() {
   const isCorrect = correctAnswers.some(
     (ans) => ans.toLowerCase() === input.toLowerCase()
   );
-  // Always show the correct answer (the first acceptable one) above the input.
+  // Always show the correct answer (the first acceptable one)
   document.getElementById("correct-answer-display").textContent =
     correctAnswers[0];
-  
-  // Update the session state and the corresponding indicator:
+
+  // Get the indicator element for the current word
   const indicator = document
     .getElementById("indicators")
     .querySelector(`[data-index="${currentWordIndex}"]`);
-  if (isCorrect) {
-    sessionStatus[currentWordIndex] = "green";
-    indicator.style.backgroundColor = "limegreen";
-    wordObj.stats.correct++;
-  } else {
-    sessionStatus[currentWordIndex] = "red";
-    indicator.style.backgroundColor = "red";
-    wordObj.stats.incorrect++;
+
+  // State transitions:
+  // • If current state is "red" (i.e. previously answered incorrectly):
+  //   - A correct answer will reset it to "default" (white) so that you must answer correctly again.
+  //   - An incorrect answer keeps it red.
+  // • If current state is "default" (white) then:
+  //   - A correct answer marks it as "green" (mastered).
+  //   - An incorrect answer turns it red.
+  if (sessionStatus[currentWordIndex] === "red") {
+    if (isCorrect) {
+      // Red -> White: reset (forcing one more correct answer for mastery)
+      sessionStatus[currentWordIndex] = "default";
+      indicator.style.backgroundColor = "white";
+      wordObj.stats.correct++;
+      markIndicator(indicator);
+    } else {
+      // Remains red if still incorrect.
+      wordObj.stats.incorrect++;
+      markIndicator(indicator);
+    }
+  } else if (sessionStatus[currentWordIndex] === "default") {
+    if (isCorrect) {
+      // White/default -> Green: mastered.
+      sessionStatus[currentWordIndex] = "green";
+      indicator.style.backgroundColor = "limegreen";
+      wordObj.stats.correct++;
+      markIndicator(indicator);
+    } else {
+      // White/default -> Red.
+      sessionStatus[currentWordIndex] = "red";
+      indicator.style.backgroundColor = "red";
+      wordObj.stats.incorrect++;
+      markIndicator(indicator);
+    }
   }
   saveDatabase();
   updateWordCountDisplay();
 }
 
-// Next word: choose a new word randomly (only from default/red ones).
+// Helper function: Mark the last updated indicator with a bold border.
+function markIndicator(element) {
+  // Remove the "last-changed" class from all indicators.
+  document.querySelectorAll(".indicator").forEach((ind) => {
+    ind.classList.remove("last-changed");
+  });
+  // Add the "last-changed" class to the passed element.
+  element.classList.add("last-changed");
+}
+
+// Next word: choose a new word randomly (only from words not yet mastered).
 function nextWord() {
   chooseNextWord();
 }
 
 // -------------------------
-// “20 Least Known Words” Loader (unchanged logic)
+// “20 Least Known Words” Loader
 // -------------------------
 function loadWeakWords() {
   const allWords = [];
@@ -232,14 +277,14 @@ function loadWeakWords() {
     const total = w.stats.correct + w.stats.incorrect;
     w.ratio = total ? w.stats.correct / total : 0;
   });
-  // Sort by ratio ascending and take 20
+  // Sort by ratio ascending and take 20.
   const weakest = allWords.sort((a, b) => a.ratio - b.ratio).slice(0, 20);
-  // Start a session with these words (the indicators will be in the order of this list)
+  // Start a session with these words (the indicators will be in the order of this list).
   startSession("weak-words", weakest);
 }
 
 // -------------------------
-// Statistics Display (unchanged)
+// Statistics Display Functions
 // -------------------------
 function showWordStats() {
   const select = document.getElementById("list-select");
@@ -344,7 +389,7 @@ function recordDailyProgress() {
 }
 
 // -------------------------
-// Event Listeners & UI Wiring
+// EVENT LISTENERS & UI WIRING
 // -------------------------
 
 document.getElementById("load-files").addEventListener("click", () => {
@@ -409,6 +454,7 @@ document.getElementById("show-histogram").addEventListener("click", () => {
   showHistogram();
 });
 
+// Mode selection change
 document.querySelectorAll("input[name='mode']").forEach((el) => {
   el.addEventListener("change", (e) => {
     mode = e.target.value;
@@ -416,19 +462,22 @@ document.querySelectorAll("input[name='mode']").forEach((el) => {
   });
 });
 
+// Check answer button
 document.getElementById("check-answer").addEventListener("click", () => {
   checkAnswer();
 });
 
+// Next word button
 document.getElementById("next-word").addEventListener("click", () => {
   nextWord();
 });
 
+// Load 20 least known words button
 document.getElementById("load-weak-words").addEventListener("click", () => {
   loadWeakWords();
 });
 
-// Close dropdowns when clicking outside.
+// Close any open dropdown if user clicks outside.
 document.addEventListener("click", function (e) {
   document.querySelectorAll(".dropdown-content").forEach((drop) => {
     if (!drop.contains(e.target) && !drop.previousElementSibling.contains(e.target)) {
@@ -436,6 +485,7 @@ document.addEventListener("click", function (e) {
     }
   });
 });
+// Re-show dropdown on hover (for mobile-friendliness)
 document.querySelectorAll(".dropdown").forEach((drop) => {
   drop.addEventListener("mouseenter", () => {
     drop.querySelector(".dropdown-content").style.display = "block";
